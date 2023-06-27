@@ -112,6 +112,11 @@ utils::exec_cmd_on_remote_hosts() {
   local cmd="${1}"
   local cmd_explanation="${2}"
   local remote_hosts_file="${3}"
+  if [ ! -f "${remote_hosts_file}" ]; then
+    utils::err "function exec_cmd_on_remote_hosts(): File ${remote_hosts_file} \
+does not exist."
+    exit 1
+  fi
   local array_of_pids=()
   local index=0
   while IFS=':' read -r host port; do

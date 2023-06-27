@@ -11,6 +11,7 @@
 # IMPORTS
 #===============================================================================
 
+caller_dir=$(pwd)
 cd "$(dirname "$0")"
 . ../utils.sh
 
@@ -36,6 +37,10 @@ export() {
     exit 1
   fi
   local remote_hosts_file="${1}"
+  if [ ! -f "${remote_hosts_file}" ]; then
+    utils::err "function export(): File ${remote_hosts_file} does not exist."
+    exit 1
+  fi
   cd ../..
   while IFS=':' read -r host port; do
     (
@@ -62,7 +67,13 @@ if [[ "$#" -ne 1 ]]; then
   utils::err 'One argument expected.'
   exit 1
 fi
-remote_hosts_file="${1}"
+remote_hosts_file="$caller_dir/${1}"
+if [ ! -f "${remote_hosts_file}" ]; then
+  utils::err "function main(): File ${remote_hosts_file} does not exist."
+  exit 1
+fi
+remote_hosts_file="$(cd "$(dirname "${remote_hosts_file}")"; pwd)/\
+$(basename "${remote_hosts_file}")"
 
 trap 'exit 1' ERR
 
