@@ -12,7 +12,7 @@
 #===============================================================================
 
 caller_dir=$(pwd)
-cd "$(dirname "$0")"
+cd "$(dirname "${0}")"
 . ../utils.sh
 
 #===============================================================================
@@ -39,7 +39,7 @@ usage() {
 # Globals:
 #   None
 # Arguments:
-#   $1: remote hosts list file
+#   $1: remote hosts list
 # Outputs:
 #   None
 # Returns:
@@ -47,16 +47,13 @@ usage() {
 #######################################
 export() {
   trap 'exit 1' ERR
-  if ! utils::check_args_eq 1 $#; then
+  if ! utils::check_args_ge 1 $#; then
     exit 1
   fi
-  local remote_hosts_file="${1}"
-  if [ ! -f "${remote_hosts_file}" ]; then
-    utils::err "function ${FUNCNAME[0]}(): File ${remote_hosts_file} does not exist."
-    exit 1
-  fi
+  local remote_hosts_list=("${@:1}")
   cd ../..
-  while IFS=':' read -r host port; do
+  for remote_host in "${remote_hosts_list[@]}"; do
+    IFS=':' read -r host port <<< "${remote_host}"
     (
       rsync -rav -e "ssh -p ${port}" \
       eth-poa/ \
@@ -68,7 +65,7 @@ export() {
       --exclude 'local/' \
       ${host}:~/scripts
     ) &
-  done < "${remote_hosts_file}"
+  done
   wait
   trap - ERR
 }
@@ -89,10 +86,11 @@ if [ ! -f "${remote_hosts_file}" ]; then
 fi
 remote_hosts_file="$(cd "$(dirname "${remote_hosts_file}")"; pwd)/\
 $(basename "${remote_hosts_file}")"
+remote_hosts_list=($(utils::create_remote_hosts_list ${remote_hosts_file}))
 
 trap 'exit 1' ERR
 
-cmd="export ${remote_hosts_file}"
+cmd="export ${remote_hosts_list}"
 utils::exec_cmd "${cmd}" 'Export the setup to the remote hosts'
 
 trap - ERR

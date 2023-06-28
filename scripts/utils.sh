@@ -251,33 +251,57 @@ utils::exec_cmd() {
 }
 
 #######################################
+# Create the remote hosts list from a file
+# Globals:
+#   None
+# Arguments:
+#   $1: remote hosts file
+# Outputs:
+#   None
+# Returns:
+#   The remote hosts list
+#######################################
+utils::create_remote_hosts_list() {
+  if ! utils::check_args_eq 1 $#; then
+    exit 1
+  fi
+  local remote_hosts_file="${1}"
+  if [ ! -f "${remote_hosts_file}" ]; then
+    utils::err "function ${FUNCNAME[0]}(): File ${remote_hosts_file} does not exist."
+    exit 1
+  fi
+  local remote_hosts_list=()
+  while IFS=':' read -r host port; do
+    remote_hosts_list+=("${host}:${port}")
+  done < "${remote_hosts_file}"
+  echo "${remote_hosts_list[@]}"
+}
+
+#######################################
 # Execute a command on all remote hosts in parallel while displaying a loader
 # Globals:
 #   None
 # Arguments:
 #   $1: command to execute
 #   $2: command explanation
-#   $3: remote hosts list file
+#   $3: remote hosts list
 # Outputs:
 #   Writes loader and command explanation to stdout
 # Returns:
 #   1 if the command failed, 0 otherwise
 #######################################
 utils::exec_cmd_on_remote_hosts() {
-  if ! utils::check_args_eq 3 $#; then
+  if ! utils::check_args_ge 3 $#; then
     exit 1
   fi
   local cmd="${1}"
   local cmd_explanation="${2}"
-  local remote_hosts_file="${3}"
-  if [ ! -f "${remote_hosts_file}" ]; then
-    utils::err "function ${FUNCNAME[0]}(): File ${remote_hosts_file} \
-does not exist."
-    exit 1
-  fi
+  local remote_hosts_list=("${@:3}")
   local array_of_pids=()
   local index=0
-  while IFS=':' read -r host port; do
+  for remote_host in "${remote_hosts_list[@]}"
+  do
+    IFS=':' read -r host port <<< "${remote_host}"
     {
       local res
       res=$(ssh -p ${port} ${host} "${cmd}" > /tmp/log_${host}_${port}.txt \
@@ -288,7 +312,7 @@ does not exist."
     } &
     array_of_pids[${index}]=$!
     index=$((index + 1))
-  done < "${remote_hosts_file}"
+  done
   local i=1
   local sp='⣾⣽⣻⢿⡿⣟⣯⣷'
   trap 'kill ${array_of_pids[@]} 2 > /dev/null 2>&1' EXIT
@@ -301,12 +325,12 @@ does not exist."
   done
   echo -ne "\r"
   local fail=false
-  index=1 # For sed to start at line 1
+  index=0
   for pid in "${array_of_pids[@]}"
   do
     wait ${pid}
     if [ "$?" -ne 0 ]; then
-      IFS=':' read -r host port <<< $(sed -n "${index}p" "${remote_hosts_file}")
+      IFS=':' read -r host port <<< "${remote_host_list[${index}]}"
       echo -e "\033[0;31mFAIL\033[0m ${cmd_explanation} on ${host}:${port}"
       cat /tmp/log_${host}_${port}.txt
       fail=true

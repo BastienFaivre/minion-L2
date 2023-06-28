@@ -12,7 +12,7 @@
 #===============================================================================
 
 caller_dir=$(pwd)
-cd "$(dirname "$0")"
+cd "$(dirname "${0}")"
 . ../utils.sh
 
 #===============================================================================
@@ -50,12 +50,13 @@ if [ ! -f "${remote_hosts_file}" ]; then
 fi
 remote_hosts_file="$(cd "$(dirname "${remote_hosts_file}")"; pwd)/\
 $(basename "${remote_hosts_file}")"
+remote_hosts_list=($(utils::create_remote_hosts_list ${remote_hosts_file}))
 
 trap 'exit 1' ERR
 
 cmd='sudo rm -rf *; sudo rm -rf /usr/local/go; sed -i "/\/usr\/local\/go/d" \
 ~/.profile'
 utils::exec_cmd_on_remote_hosts "${cmd}" 'Clean remote hosts' \
-  "${remote_hosts_file}"
+  "${remote_hosts_list[@]}"
 
 trap - ERR

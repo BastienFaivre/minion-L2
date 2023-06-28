@@ -34,7 +34,7 @@ usage() {
   echo "Usage: $(basename ${0}) <action> [options...]"
   echo 'Actions:'
   echo '  prepare <nodes names...>'
-  echo '  generate TODO'
+  echo '  generate'
 }
 
 #######################################
@@ -51,7 +51,7 @@ usage() {
 setup_environment() {
   trap 'exit 1' ERR
   if [ ! -d ${INSTALL_ROOT} ]; then
-    echo 'function setup_environment(): Ethereum is not installed. Please run \
+    echo 'function ${FUNCNAME[0]}(): Ethereum is not installed. Please run \
 install-eth-poa.sh first.'
     trap - ERR
     exit 1
@@ -104,6 +104,22 @@ prepare() {
     port=$((port+1))
     wsport=$((wsport+1))
   done
+  trap - ERR
+}
+
+generate() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_eq 0 $#; then
+    exit 1
+  fi
+  setup_environment
+  if [ ! -f ${DEPLOY_ROOT}/network.tar.gz ]; then
+    utils::err "function ${FUNCNAME[0]}(): File ${DEPLOY_ROOT}/network.tar.gz "\
+'not found.'
+    exit 1
+  fi
+  mkdir -p ${DEPLOY_ROOT}/network
+  tar -xzf ${DEPLOY_ROOT}/network.tar.gz -C ${DEPLOY_ROOT}/network
   trap - ERR
 }
 
