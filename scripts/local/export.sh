@@ -20,6 +20,21 @@ cd "$(dirname "$0")"
 #===============================================================================
 
 #######################################
+# Get the usage of the script
+# Globals:
+#   None
+# Arguments:
+#   None
+# Outputs:
+#   Writes the usage to stdout
+# Returns:
+#   None
+#######################################
+usage() {
+  echo "Usage: $(basename ${0}) <remote hosts file>"
+}
+
+#######################################
 # Export the setup to the remote hosts
 # Globals:
 #   None
@@ -32,13 +47,12 @@ cd "$(dirname "$0")"
 #######################################
 export() {
   trap 'exit 1' ERR
-  if [[ "$#" -ne 1 ]]; then
-    utils::err 'function export(): One argument expected.'
+  if ! utils::check_args_eq 1 $#; then
     exit 1
   fi
   local remote_hosts_file="${1}"
   if [ ! -f "${remote_hosts_file}" ]; then
-    utils::err "function export(): File ${remote_hosts_file} does not exist."
+    utils::err "function ${FUNCNAME[0]}(): File ${remote_hosts_file} does not exist."
     exit 1
   fi
   cd ../..
@@ -63,13 +77,14 @@ export() {
 # MAIN
 #===============================================================================
 
-if [[ "$#" -ne 1 ]]; then
-  utils::err 'One argument expected.'
+if ! utils::check_args_eq 1 $#; then
+  usage
   exit 1
 fi
 remote_hosts_file="$caller_dir/${1}"
 if [ ! -f "${remote_hosts_file}" ]; then
   utils::err "function main(): File ${remote_hosts_file} does not exist."
+  usage
   exit 1
 fi
 remote_hosts_file="$(cd "$(dirname "${remote_hosts_file}")"; pwd)/\

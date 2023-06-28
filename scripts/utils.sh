@@ -5,7 +5,6 @@
 #          Systems
 # Date: June 2023
 # Description: Define a set of utility functions
-# Source: https://github.com/BastienFaivre/bash-scripts/blob/main/utils/utils.sh
 #===============================================================================
 
 #######################################
@@ -26,6 +25,168 @@ utils::err() {
 }
 
 #######################################
+# Check that the number of arguments is equal to the expected number
+# Globals:
+#   None
+# Arguments:
+#   $1: expected number of arguments
+#   $2: given number of arguments
+# Outputs:
+#   Writes error to stderr if the number of arguments is wrong
+# Returns:
+#   1 if the number of arguments is wrong, 0 otherwise
+#######################################
+utils::check_args_eq() {
+  if [[ "$#" -ne 2 ]]; then
+    utils::err "function ${FUNCNAME[0]}(): Wrong number of arguments: expected"\
+" 2, got $#."
+    return 1
+  fi
+  local expected=${1}
+  local given=${2}
+  if [ "${expected}" -ne "${given}" ]; then
+    if [[ "${FUNCNAME[1]}" == "bash" ]]; then
+      utils::err "Wrong number of arguments: expected ${expected}, got "\
+"${given}."
+    else
+      utils::err "function ${FUNCNAME[1]}(): Wrong number of arguments: "\
+"expected ${expected}, got ${given}."
+    fi
+    return 1
+  fi
+}
+
+#######################################
+# Check that the number of arguments is less than the expected number
+# Globals:
+#   None
+# Arguments:
+#   $1: expected number of arguments
+#   $2: given number of arguments
+# Outputs:
+#   Writes error to stderr if the number of arguments is wrong
+# Returns:
+#   1 if the number of arguments is wrong, 0 otherwise
+#######################################
+utils::check_args_lt() {
+  if [[ "$#" -ne 2 ]]; then
+    utils::err "function ${FUNCNAME[0]}(): Wrong number of arguments: expected"\
+" 2, got $#."
+    return 1
+  fi
+  local expected=${1}
+  local given=${2}
+  if [[ "${given}" -ge "${expected}" ]]; then
+    if [[ "${FUNCNAME[1]}" == "bash" ]]; then
+      utils::err "Wrong number of arguments: expected less than ${expected}, "\
+"got ${given}."
+    else
+      utils::err "function ${FUNCNAME[1]}(): Wrong number of arguments: "\
+"expected less than ${expected}, got ${given}."
+    fi
+    return 1
+  fi
+}
+
+#######################################
+# Check that the number of arguments is less than or equal to the expected
+# number
+# Globals:
+#   None
+# Arguments:
+#   $1: expected number of arguments
+#   $2: given number of arguments
+# Outputs:
+#   Writes error to stderr if the number of arguments is wrong
+# Returns:
+#   1 if the number of arguments is wrong, 0 otherwise
+#######################################
+utils::check_args_le() {
+  if [[ "$#" -ne 2 ]]; then
+    utils::err "function ${FUNCNAME[0]}(): Wrong number of arguments: expected"\
+" 2, got $#."
+    return 1
+  fi
+  local expected=${1}
+  local given=${2}
+  if [[ "${given}" -gt "${expected}" ]]; then
+    if [[ "${FUNCNAME[1]}" == "bash" ]]; then
+      utils::err "Wrong number of arguments: expected at most ${expected}, got"\
+" ${given}."
+    else
+      utils::err "function ${FUNCNAME[1]}(): Wrong number of arguments: "\
+"expected at most ${expected}, got ${given}."
+    fi
+    return 1
+  fi
+}
+
+#######################################
+# Check that the number of arguments is greater than the expected number
+# Globals:
+#   None
+# Arguments:
+#   $1: expected number of arguments
+#   $2: given number of arguments
+# Outputs:
+#   Writes error to stderr if the number of arguments is wrong
+# Returns:
+#   1 if the number of arguments is wrong, 0 otherwise
+#######################################
+utils::check_args_gt() {
+  if [[ "$#" -ne 2 ]]; then
+    utils::err "function ${FUNCNAME[0]}(): Wrong number of arguments: expected"\
+" 2, got $#."
+    return 1
+  fi
+  local expected=${1}
+  local given=${2}
+  if [[ "${given}" -le "${expected}" ]]; then
+    if [[ "${FUNCNAME[1]}" == "bash" ]]; then
+      utils::err "Wrong number of arguments: expected more than ${expected}, "\
+"got ${given}."
+    else
+      utils::err "function ${FUNCNAME[1]}(): Wrong number of arguments: "\
+"expected more than ${expected}, got ${given}."
+    fi
+    return 1
+  fi
+}
+
+#######################################
+# Check that the number of arguments is greater than or equal to the expected
+# number
+# Globals:
+#   None
+# Arguments:
+#   $1: expected number of arguments
+#   $2: given number of arguments
+# Outputs:
+#   Writes error to stderr if the number of arguments is wrong
+# Returns:
+#   1 if the number of arguments is wrong, 0 otherwise
+#######################################
+utils::check_args_ge() {
+  if [[ "$#" -ne 2 ]]; then
+    utils::err "function ${FUNCNAME[0]}(): Wrong number of arguments: expected"\
+" 2, got $#."
+    return 1
+  fi
+  local expected=${1}
+  local given=${2}
+  if [[ "${given}" -lt "${expected}" ]]; then
+    if [[ "${FUNCNAME[1]}" == "bash" ]]; then
+      utils::err "Wrong number of arguments: expected at least ${expected}, "\
+"got ${given}."
+    else
+      utils::err "function ${FUNCNAME[1]}(): Wrong number of arguments: "\
+"expected at least ${expected}, got ${given}."
+    fi
+    return 1
+  fi
+}
+
+#######################################
 # Ask for sudo
 # Globals:
 #   None
@@ -37,13 +198,12 @@ utils::err() {
 #   None
 #######################################
 utils::ask_sudo() {
-  if [[ "$#" -ne 0 ]]; then
-    utils::err 'function ask_sudo(): No argument expected.'
+  if ! utils::check_args_eq 0 $#; then
     exit 1
   fi
   sudo -v > /dev/null 2>&1
   if [ "$?" -ne 0 ]; then
-    utils::err 'function ask_sudo(): Super user is required.'
+    utils::err "function ${FUNCNAME[0]}(): Could not obtain sudo."
     exit 1
   fi
 }
@@ -61,8 +221,7 @@ utils::ask_sudo() {
 #   1 if the command failed, 0 otherwise
 #######################################
 utils::exec_cmd() {
-  if [[ "$#" -ne 2 ]]; then
-    utils::err 'function exec_cmd(): 2 arguments expected.'
+  if ! utils::check_args_eq 2 $#; then
     exit 1
   fi
   local cmd="${1}"
@@ -105,15 +264,14 @@ utils::exec_cmd() {
 #   1 if the command failed, 0 otherwise
 #######################################
 utils::exec_cmd_on_remote_hosts() {
-  if [[ "$#" -ne 3 ]]; then
-    utils::err 'function exec_cmd_on_remote_hosts(): 3 arguments expected.'
+  if ! utils::check_args_eq 3 $#; then
     exit 1
   fi
   local cmd="${1}"
   local cmd_explanation="${2}"
   local remote_hosts_file="${3}"
   if [ ! -f "${remote_hosts_file}" ]; then
-    utils::err "function exec_cmd_on_remote_hosts(): File ${remote_hosts_file} \
+    utils::err "function ${FUNCNAME[0]}(): File ${remote_hosts_file} \
 does not exist."
     exit 1
   fi

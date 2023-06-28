@@ -7,10 +7,10 @@
 # Description: Variables used in the remote scripts
 #===============================================================================
 
-INSTALL_FOLDER='install'
-INSTALL_ROOT="$INSTALL_FOLDER/eth-poa"
-DEPLOY_ROOT='deploy/eth-poa'
-GO_URL='https://go.dev/dl/go1.20.5.linux-amd64.tar.gz'
-GO_PATH='/usr/local/go/bin'
-GETH_URL='https://github.com/ethereum/go-ethereum'
-GETH_BRANCH='master'
+readonly INSTALL_FOLDER='install'
+readonly INSTALL_ROOT="$INSTALL_FOLDER/eth-poa"
+readonly DEPLOY_ROOT='deploy/eth-poa'
+readonly GO_URL='https://go.dev/dl/go1.20.5.linux-amd64.tar.gz'
+readonly GO_PATH='/usr/local/go/bin'
+readonly GETH_URL='https://github.com/ethereum/go-ethereum'
+readonly GETH_BRANCH='master'

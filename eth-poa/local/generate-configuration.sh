@@ -13,11 +13,27 @@
 
 caller_dir=$(pwd)
 cd "$(dirname "$0")"
+. ../constants.sh
 . ../../scripts/utils.sh
 
 #===============================================================================
 # FUNCTIONS
 #===============================================================================
+
+#######################################
+# Get the usage of the script
+# Globals:
+#   None
+# Arguments:
+#   None
+# Outputs:
+#   Writes the usage to stdout
+# Returns:
+#   None
+#######################################
+usage() {
+  echo 'Usage: $(basename ${0}) <remote hosts file> <number of nodes>'
+}
 
 #######################################
 # Prepare the hosts for the configuration generation
@@ -33,8 +49,7 @@ cd "$(dirname "$0")"
 #######################################
 prepare() {
   trap 'exit 1' ERR
-  if [[ "$#" -ne 2 ]]; then
-    utils::err 'function prepare(): Two arguments expected.'
+  if ! utils::check_args_eq 2 $#; then
     exit 1
   fi
   local remote_hosts_file=${1}
@@ -86,8 +101,7 @@ prepare() {
 #######################################
 retrieve_accounts() {
   trap 'exit 1' ERR
-  if [[ "$#" -ne 1 ]]; then
-    utils::err 'function retrieve_accounts(): One argument expected.'
+  if ! utils::check_args_eq 1 $#; then
     exit 1
   fi
   local remote_hosts_file=${1}
@@ -101,9 +115,38 @@ not exist."
   mkdir -p ./tmp/network
   while IFS=':' read -r host port; do
     echo "Retrieving accounts from ${host}:${port}"
-    scp -r -P ${port} ${host}:~/deploy/eth-poa/n* ./tmp/network
+    scp -r -P ${port} ${host}:~/${DEPLOY_ROOT}/n* ./tmp/network
   done < ${remote_hosts_file}
   tar -czf ./tmp/network.tar.gz ./tmp/network
+  trap - ERR
+}
+
+#######################################
+# Send the accounts to one node the generate the genesis file
+# Globals:
+#   None
+# Arguments:
+#   $1: remote hosts list file
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+send_accounts() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_eq 1 $#; then
+    exit 1
+  fi
+  local remote_hosts_file=${1}
+  if [ ! -f ${remote_hosts_file} ]; then
+    utils::err "function send_accounts(): File ${remote_hosts_file} does not \
+exist."
+    exit 1
+  fi
+  read -r first_line < ${remote_hosts_file}
+  host=$(echo "${first_line}" | cut -d: -f1)
+  port=$(echo "${first_line}" | cut -d: -f2)
+  scp -P ${port} ./tmp/network.tar.gz ${host}:~/${DEPLOY_ROOT}
   trap - ERR
 }
 
@@ -111,8 +154,8 @@ not exist."
 # MAIN
 #===============================================================================
 
-if [[ "$#" -ne 2 ]]; then
-  utils::err 'Two arguments expected.'
+if ! utils::check_args_eq 2 $#; then
+  usage
   exit 1
 fi
 remote_hosts_file=$caller_dir/${1}
@@ -130,5 +173,7 @@ cmd="prepare ${remote_hosts_file} ${number_of_nodes}"
 utils::exec_cmd "${cmd}" 'Prepare the hosts'
 cmd="retrieve_accounts ${remote_hosts_file}"
 utils::exec_cmd "${cmd}" 'Retrieve the accounts'
+cmd="send_accounts ${remote_hosts_file}"
+utils::exec_cmd "${cmd}" 'Send the accounts to one host'
 
 trap - ERR

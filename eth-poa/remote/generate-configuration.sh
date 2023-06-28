@@ -12,12 +12,30 @@
 # IMPORTS
 #===============================================================================
 
-. eth-poa/remote/remote.env
+. eth-poa/constants.sh
 . scripts/utils.sh
 
 #===============================================================================
 # FUNCTIONS
 #===============================================================================
+
+#######################################
+# Get the usage of the script
+# Globals:
+#   None
+# Arguments:
+#   None
+# Outputs:
+#   Writes the usage to stdout
+# Returns:
+#   None
+#######################################
+usage() {
+  echo "Usage: $(basename ${0}) <action> [options...]"
+  echo 'Actions:'
+  echo '  prepare <nodes names...>'
+  echo '  generate TODO'
+}
 
 #######################################
 # Check that the necessary commands are available and export them
@@ -66,8 +84,7 @@ install-eth-poa.sh first.'
 #######################################
 prepare() {
   trap 'exit 1' ERR
-  if [[ "$#" -lt 1 ]]; then
-    utils::err 'function prepare(): Nodes names expected.'
+  if ! utils::check_args_ge 1 $#; then
     exit 1
   fi
   setup_environment
@@ -79,6 +96,7 @@ prepare() {
   for name in "$@"; do
     dir=${DEPLOY_ROOT}/${name}
     mkdir -p ${dir}
+    # \n\n is to skip the password confirmation
     printf "\n\n" | geth account new --datadir ${dir}
     echo ${port} > ${dir}/port
     echo ${wsport} > ${dir}/wsport
@@ -93,8 +111,8 @@ prepare() {
 # MAIN
 #===============================================================================
 
-if [ $# -eq 0 ]; then
-  echo "Usage: $0 <action> [options...]"
+if ! utils::check_args_ge 1 $#; then
+  usage
   exit 1
 fi
 action=$1; shift
@@ -112,7 +130,8 @@ case ${action} in
     utils::exec_cmd "${cmd}" 'Generate the configuration'
     ;;
   *)
-    echo "Usage: $0 <action> [options...]"
+    utils::err "Unknown action ${action}"
+    usage
     trap - ERR
     exit 1
     ;;
