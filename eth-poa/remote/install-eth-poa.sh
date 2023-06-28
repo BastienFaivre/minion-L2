@@ -133,7 +133,9 @@ fi
 trap 'exit 1' ERR
 
 utils::ask_sudo
+
 utils::exec_cmd 'install_necessary_packages' 'Install necessary packages'
+
 if ! command -v go &> /dev/null
 then
   utils::exec_cmd 'install_go' 'Install Go'
@@ -145,7 +147,9 @@ then
     exit 1
   fi
 fi
+
 utils::exec_cmd 'initialize_directories' 'Initialize directories'
+
 utils::exec_cmd 'clone_and_build_geth' 'Clone and build Geth'
 
 trap - ERR

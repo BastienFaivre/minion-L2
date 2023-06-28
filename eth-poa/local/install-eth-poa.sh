@@ -58,3 +58,5 @@ trap 'exit 1' ERR
 cmd='./eth-poa/remote/install-eth-poa.sh'
 utils::exec_cmd_on_remote_hosts "${cmd}" 'Install Geth on remote hosts' \
   "${remote_hosts_list[@]}"
+
+trap - ERR

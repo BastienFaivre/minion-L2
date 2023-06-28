@@ -330,7 +330,7 @@ utils::exec_cmd_on_remote_hosts() {
   do
     wait ${pid}
     if [ "$?" -ne 0 ]; then
-      IFS=':' read -r host port <<< "${remote_host_list[${index}]}"
+      IFS=':' read -r host port <<< "${remote_hosts_list[${index}]}"
       echo -e "\033[0;31mFAIL\033[0m ${cmd_explanation} on ${host}:${port}"
       cat /tmp/log_${host}_${port}.txt
       fail=true

@@ -50,6 +50,7 @@ usage() {
 prepare() {
   trap 'exit 1' ERR
   if ! utils::check_args_ge 2 $#; then
+    trap - ERR
     exit 1
   fi
   local number_of_nodes=${1}
@@ -87,7 +88,7 @@ prepare() {
 }
 
 #######################################
-# Retrieve the accounts from the nodes
+# Retrieve the accounts from the hosts
 # Globals:
 #   None
 # Arguments:
@@ -100,6 +101,7 @@ prepare() {
 retrieve_accounts() {
   trap 'exit 1' ERR
   if ! utils::check_args_ge 1 $#; then
+    trap - ERR
     exit 1
   fi
   local remote_hosts_list=("${@:1}")
@@ -115,7 +117,7 @@ retrieve_accounts() {
 }
 
 #######################################
-# Send the accounts to one node the generate the genesis file
+# Send the accounts to one host the generate the genesis file
 # Globals:
 #   None
 # Arguments:
@@ -128,12 +130,124 @@ retrieve_accounts() {
 send_accounts() {
   trap 'exit 1' ERR
   if ! utils::check_args_eq 1 $#; then
+    trap - ERR
     exit 1
   fi
   local remote_host=${1}
   local host=$(echo "${remote_host}" | cut -d: -f1)
   local port=$(echo "${remote_host}" | cut -d: -f2)
   scp -P ${port} ./tmp/network.tar.gz ${host}:~/${DEPLOY_ROOT}
+  trap - ERR
+}
+
+#######################################
+# Retrieve the genesis file from the host
+# Globals:
+#   None
+# Arguments:
+#   $1: remote host
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+retrieve_configuration() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_eq 1 $#; then
+    trap - ERR
+    exit 1
+  fi
+  local remote_host=${1}
+  local host=$(echo "${remote_host}" | cut -d: -f1)
+  local port=$(echo "${remote_host}" | cut -d: -f2)
+  scp -P ${port} ${host}:~/${NETWORK_ROOT}/genesis.json ./tmp
+  ssh -p ${port} ${host} "rm -rf ~/${NETWORK_ROOT}"
+  trap - ERR
+}
+
+#######################################
+# Send the genesis file to the hosts
+# Globals:
+#   None
+# Arguments:
+#   $1: remote hosts list
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+send_configuration() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_ge 1 $#; then
+    trap - ERR
+    exit 1
+  fi
+  local remote_hosts_list=("${@:1}")
+  for remote_host in "${remote_hosts_list[@]}"; do
+    IFS=':' read -r host port <<< "${remote_host}"
+    scp -P ${port} ./tmp/genesis.json ${host}:~/${DEPLOY_ROOT} &
+  done
+  wait
+  trap - ERR
+}
+
+#######################################
+# Retrieve the static nodes file from the hosts
+# Globals:
+#   None
+# Arguments:
+#   $1: remote hosts list
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+retrieve_static_nodes() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_ge 1 $#; then
+    trap - ERR
+    exit 1
+  fi
+  local remote_hosts_list=("${@:1}")
+  mkdir -p ./tmp/static-nodes
+  for remote_host in "${remote_hosts_list[@]}"; do
+    IFS=':' read -r host port <<< "${remote_host}"
+    scp -P ${port} ${host}:~/${DEPLOY_ROOT}/static-nodes-*.json \
+      ./tmp/static-nodes/ &
+  done
+  wait
+  trap - ERR
+}
+
+#######################################
+# Aggregate the static nodes file
+# Globals:
+#   None
+# Arguments:
+#   None
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+aggregate_static_nodes() {
+  trap 'exit 1' ERR
+  echo '[' > ./tmp/static-nodes.json
+  local first_entry=true
+  local host_ip
+  for file in ./tmp/static-nodes/static-nodes-*.json; do
+    host_ip=$(echo ${file} | sed 's/.*static-nodes-\(.*\).json/\1/')
+    while read -r enode; do
+      if [ ${first_entry} = true ]; then
+        first_entry=false
+      else
+        sed -i '$ s/$/,/' ./tmp/static-nodes.json
+      fi
+      echo -e "\t${enode}" | sed "s/0\.0\.0\.0/${host_ip}/g" \
+        >> ./tmp/static-nodes.json
+    done < ${file}
+  done
+  echo ']' >> ./tmp/static-nodes.json
   trap - ERR
 }
 
@@ -159,13 +273,33 @@ trap 'exit 1' ERR
 
 cmd="prepare ${number_of_nodes} ${remote_hosts_list[@]}"
 utils::exec_cmd "${cmd}" 'Prepare the hosts'
+
 cmd="retrieve_accounts ${remote_hosts_list[@]}"
 utils::exec_cmd "${cmd}" 'Retrieve the accounts'
+
 first_remote_host=${remote_hosts_list[0]}
+
 cmd="send_accounts ${first_remote_host}"
 utils::exec_cmd "${cmd}" 'Send the accounts to one host'
+
 cmd='./eth-poa/remote/generate-configuration.sh generate'
 utils::exec_cmd_on_remote_hosts "${cmd}" 'Generate the configuration' \
   "${first_remote_host}"
+
+cmd="retrieve_configuration ${first_remote_host}"
+utils::exec_cmd "${cmd}" 'Retrieve the configuration'
+
+cmd="send_configuration ${remote_hosts_list[@]}"
+utils::exec_cmd "${cmd}" 'Send the configuration to the hosts'
+
+cmd='./eth-poa/remote/generate-configuration.sh setup'
+utils::exec_cmd_on_remote_hosts "${cmd}" 'Setup the hosts' \
+  "${remote_hosts_list[@]}"
+
+cmd="retrieve_static_nodes ${remote_hosts_list[@]}"
+utils::exec_cmd "${cmd}" 'Retrieve the static nodes'
+
+cmd='aggregate_static_nodes'
+utils::exec_cmd "${cmd}" 'Aggregate the static nodes'
 
 trap - ERR
