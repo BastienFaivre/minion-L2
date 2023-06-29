@@ -256,7 +256,8 @@ utils::exec_cmd() {
   local sp='⣾⣽⣻⢿⡿⣟⣯⣷'
   trap 'kill ${pid} 2 > /dev/null 2>&1' EXIT
   while kill -0 ${pid} 2> /dev/null; do
-    echo -ne "\r${sp:i++%${#sp}:1} ${cmd_explanation}"
+    local c=${sp:i++%${#sp}:1}
+    echo -ne "\r${c}${c}${c}${c} ${cmd_explanation}"
     sleep 0.1
   done
   wait ${pid}
@@ -342,7 +343,8 @@ utils::exec_cmd_on_remote_hosts() {
   for pid in "${array_of_pids[@]}"
   do
     while kill -0 ${pid} 2> /dev/null; do
-      echo -ne "\r${sp:i++%${#sp}:1} ${cmd_explanation}"
+      local c=${sp:i++%${#sp}:1}
+      echo -ne "\r${c}${c}${c}${c} ${cmd_explanation}"
       sleep 0.1
     done
   done

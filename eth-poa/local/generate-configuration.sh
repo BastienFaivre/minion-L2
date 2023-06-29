@@ -212,7 +212,7 @@ retrieve_static_nodes() {
   mkdir -p ./tmp/static-nodes
   for remote_host in "${remote_hosts_list[@]}"; do
     IFS=':' read -r host port <<< "${remote_host}"
-    scp -P ${port} ${host}:~/${DEPLOY_ROOT}/static-nodes-*.json \
+    scp -P ${port} ${host}:~/${DEPLOY_ROOT}/static-nodes-* \
       ./tmp/static-nodes/ &
   done
   wait
@@ -232,24 +232,27 @@ retrieve_static_nodes() {
 #######################################
 aggregate_static_nodes() {
   trap 'exit 1' ERR
-  echo '[' > ./tmp/static-nodes.json
+  echo '[Node.P2P]' > ./tmp/config.toml
+  echo 'StaticNodes = [' >> ./tmp/config.toml
   local first_entry=true
   local host_ip
-  for file in ./tmp/static-nodes/static-nodes-*.json; do
-    host_ip=$(echo ${file} | sed 's/.*static-nodes-\(.*\).json/\1/')
+  for file in ./tmp/static-nodes/static-nodes-*; do
+    host_ip=$(echo ${file} | sed 's/.*static-nodes-\(.*\)/\1/')
     while read -r enode; do
       if [ ${first_entry} = true ]; then
         first_entry=false
       else
-        sed -i '$ s/$/,/' ./tmp/static-nodes.json
+        sed -i '$ s/$/,/' ./tmp/config.toml
       fi
       echo -e "\t${enode}" | sed "s/0\.0\.0\.0/${host_ip}/g" \
-        >> ./tmp/static-nodes.json
+        >> ./tmp/config.toml
     done < ${file}
   done
-  echo ']' >> ./tmp/static-nodes.json
+  echo ']' >> ./tmp/config.toml
   trap - ERR
 }
+
+
 
 #######################################
 # Send the static nodes file to the hosts
@@ -271,7 +274,7 @@ send_static_nodes() {
   local remote_hosts_list=("${@:1}")
   for remote_host in "${remote_hosts_list[@]}"; do
     IFS=':' read -r host port <<< "${remote_host}"
-    scp -P ${port} ./tmp/static-nodes.json ${host}:~/${DEPLOY_ROOT} &
+    scp -P ${port} ./tmp/config.toml ${host}:~/${DEPLOY_ROOT} &
   done
 }
 

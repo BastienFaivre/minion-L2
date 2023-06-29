@@ -65,12 +65,6 @@ setup_environment() {
     trap - ERR
     exit 1
   fi
-  if ! command -v bootnode &> /dev/null
-  then
-    utils::err "Geth command not found in ${INSTALL_ROOT}/build/bin"
-    trap - ERR
-    exit 1
-  fi
   trap - ERR
 }
 
@@ -95,7 +89,7 @@ prepare() {
   rm -rf ${DEPLOY_ROOT}
   mkdir -p ${DEPLOY_ROOT}
   local port=7000
-  local wsport=9000
+  local rpcport=9000
   local dir
   for name in "$@"; do
     dir=${DEPLOY_ROOT}/${name}
@@ -103,10 +97,10 @@ prepare() {
     # \n\n is to skip the password confirmation
     printf "\n\n" | geth account new --datadir ${dir}
     echo ${port} > ${dir}/port
-    echo ${wsport} > ${dir}/wsport
-    touch ${dir}/password.txt
+    echo ${rpcport} > ${dir}/rpcport
+    touch ${dir}/password
     port=$((port+1))
-    wsport=$((wsport+1))
+    rpcport=$((rpcport+1))
   done
   trap - ERR
 }
@@ -158,7 +152,7 @@ generate() {
   cat > ${NETWORK_ROOT}/genesis.json <<EOF
 {
   "config": {
-    "chainId": 10,
+    "chainId": ${NETWORK_ID},
     "homesteadBlock": 0,
     "eip150Block": 0,
     "eip155Block": 0,
@@ -218,14 +212,14 @@ setup() {
     test -f ${address} || continue
     address=${address##*--}
     geth --datadir ${dir} --nodiscover --allow-insecure-unlock --unlock \
-      ${address} --password ${dir}/password.txt &
+      ${address} --password ${dir}/password &
     pid=$!
     while [ ! -e ${dir}/geth.ipc ]; do
       sleep 0.1
     done
     geth attach --exec admin.nodeInfo.enode ${dir}/geth.ipc \
       | sed -r 's/@.*\?/@0.0.0.0:'${port}'?/' \
-      >> ${DEPLOY_ROOT}/static-nodes-$(hostname -I | awk '{print $1}').json
+      >> ${DEPLOY_ROOT}/static-nodes-$(hostname -I | awk '{print $1}')
     kill ${pid}
   done
   rm -rf ${DEPLOY_ROOT}/genesis.json
@@ -249,19 +243,19 @@ finalize() {
     trap - ERR
     exit 1
   fi
-  # check that the static-nodes.json file exist
-  if [ ! -f ${DEPLOY_ROOT}/static-nodes.json ]; then
+  setup_environment
+  if [ ! -f ${DEPLOY_ROOT}/config.toml ]; then
     utils::err "function ${FUNCNAME[0]}(): File ${DEPLOY_ROOT}/"\
-'static-nodes.json not found.'
+'config.toml not found.'
     trap - ERR
     exit 1
   fi
   for dir in ${DEPLOY_ROOT}/*; do
     test -d ${dir} || continue
     test -d ${dir}/keystore || continue
-    cp ${DEPLOY_ROOT}/static-nodes.json ${dir}/
+    cp ${DEPLOY_ROOT}/config.toml ${dir}/
   done
-  rm -rf ${DEPLOY_ROOT}/static-nodes*.json
+  rm -rf ${DEPLOY_ROOT}/static-nodes-*.json ${DEPLOY_ROOT}/config.toml
   trap - ERR
 }
 

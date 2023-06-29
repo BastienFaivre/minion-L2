@@ -34,20 +34,21 @@ usage() {
   echo "Usage: $(basename ${0}) [options...]"
   echo 'Options:'
   echo '  -h, --help          display this message and exit'
-  echo '  -n, --num-nodes     number of nodes'
   echo '  -f, --hosts-file    remote hosts file'
   echo '    File format: one host per line, with the following format:'
   echo '      <host>:<port>'
   echo '    Example:'
   echo '      root@example.com:1234'
   echo '    Please ALWAYS SPECIFY THE PORT, even if it is the default SSH port'
-  echo '  -s, --start-at      start at the given step, default: 1'
-  echo '  -e, --end-at        end at the given step (inclusive), default: 3'
+  echo '  -n, --num-nodes     number of nodes (required for step 3)'
+  echo '  -s, --steps         steps to do (default: all)'
+  echo '    Format: <step>[,<step>]...'
   echo '    Steps:'
   echo '      1: export scripts to remote hosts'
   echo '      2: install Ethereum PoA on remote hosts (this may take few '\
 'minutes)'
   echo '      3: generate the configuration for the Ethereum PoA network'
+  echo '      4: start Ethereum PoA network'
 }
 
 #######################################
@@ -88,9 +89,9 @@ welcome() {
 
 welcome
 
-num_nodes=''
 remote_hosts_file=''
-start_at=1
+num_nodes=''
+steps=''
 
 while [[ $# -gt 0 ]]; do
   case ${1} in
@@ -98,16 +99,16 @@ while [[ $# -gt 0 ]]; do
       usage
       exit 0
       ;;
-    -n|--num-nodes)
-      num_nodes=${2}
-      shift 2
-      ;;
     -f|--hosts-file)
       remote_hosts_file=${2}
       shift 2
       ;;
-    -s|--start-at)
-      start_at=${2}
+    -n|--num-nodes)
+      num_nodes=${2}
+      shift 2
+      ;;
+    -s|--steps)
+      steps=${2}
       shift 2
       ;;
     *)
@@ -116,10 +117,22 @@ while [[ $# -gt 0 ]]; do
       exit 1
       ;;
   esac
-done    
+done
 
-if ! utils::check_required_arg 'Number of nodes' "${num_nodes}" \
-  || ! utils::check_required_arg 'Remote hosts file' "${remote_hosts_file}"; then
+if [[ -z "${num_nodes}" ]] && [[ -z "${remote_hosts_file}" ]] && \
+  [[ -z "${steps}" ]]; then
+  usage
+  exit 0
+fi
+
+if ! utils::check_required_arg 'Remote hosts file' "${remote_hosts_file}"; then
+  echo ''
+  usage
+  exit 1
+fi
+
+if [[ "${steps}" == *'3'* ]] && ! utils::check_required_arg 'Number of nodes' \
+  "${num_nodes}"; then
   echo ''
   usage
   exit 1
@@ -127,14 +140,14 @@ fi
 
 trap 'exit 1' ERR
 
-if ((start_at <= 1)); then
+if [[ "${steps}" == '' ]] || [[ "${steps}" == *'1'* ]]; then
   cmd="./scripts/local/export.sh ${remote_hosts_file}"
   utils::exec_cmd "${cmd}" 'Export scripts to remote hosts'
 else
   utils::skip_cmd 'Export scripts to remote hosts'
 fi
 
-if ((start_at <= 2)); then
+if [[ "${steps}" == '' ]] || [[ "${steps}" == *'2'* ]]; then
   cmd="./eth-poa/local/install-eth-poa.sh ${remote_hosts_file}"
   utils::exec_cmd "${cmd}" 'Install Ethereum PoA on remote hosts (this may '\
 'take few minutes)'
@@ -143,7 +156,7 @@ else
 'minutes)'
 fi
 
-if ((start_at <= 3)); then
+if [[ "${steps}" == '' ]] || [[ "${steps}" == *'3'* ]]; then
   cmd="./eth-poa/local/generate-configuration.sh ${remote_hosts_file} "\
 "${num_nodes}"
   utils::exec_cmd "${cmd}" 'Generate the configuration for the Ethereum PoA '\
@@ -152,7 +165,14 @@ else
   utils::skip_cmd 'Generate the configuration for the Ethereum PoA network'
 fi
 
+if [[ "${steps}" == '' ]] || [[ "${steps}" == *'4'* ]]; then
+  cmd="./eth-poa/local/eth-poa.sh ${remote_hosts_file} start"
+  utils::exec_cmd "${cmd}" 'Start Ethereum PoA network'
+else
+  utils::skip_cmd 'Start Ethereum PoA network'
+fi
+
 echo ''
-echo 'Deployment successful!'
+echo 'Task completed successfully!'
 
 trap - ERR
