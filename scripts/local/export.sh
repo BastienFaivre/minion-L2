@@ -45,7 +45,7 @@ usage() {
 # Returns:
 #   None
 #######################################
-export() {
+export_scripts() {
   trap 'exit 1' ERR
   if ! utils::check_args_ge 1 $#; then
     trap - ERR
@@ -91,7 +91,7 @@ remote_hosts_list=($(utils::create_remote_hosts_list ${remote_hosts_file}))
 
 trap 'exit 1' ERR
 
-cmd="export ${remote_hosts_list[@]}"
+cmd="export_scripts ${remote_hosts_list[@]}"
 utils::exec_cmd "${cmd}" 'Export the setup to the remote hosts'
 
 trap - ERR

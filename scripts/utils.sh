@@ -25,6 +25,30 @@ utils::err() {
 }
 
 #######################################
+# Check that a required argument is not empty
+# Globals:
+#   None
+# Arguments:
+#   $1: argument name
+#   $2: argument value
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+utils::check_required_arg() {
+  if ! utils::check_args_eq 2 $#; then
+    return 1
+  fi
+  local arg_name="${1}"
+  local arg_value="${2}"
+  if [ -z "${arg_value}" ]; then
+    utils::err "Missing required argument: ${arg_name}."
+    return 1
+  fi
+}
+
+#######################################
 # Check that the number of arguments is equal to the expected number
 # Globals:
 #   None
@@ -226,7 +250,7 @@ utils::exec_cmd() {
   fi
   local cmd="${1}"
   local cmd_explanation="${2}"
-  ${cmd} > /tmp/log.txt 2> /tmp/log.txt &
+  ${cmd} > /tmp/log.txt 2>&1 &
   local pid=$!
   local i=1
   local sp='⣾⣽⣻⢿⡿⣟⣯⣷'
@@ -239,12 +263,12 @@ utils::exec_cmd() {
   if [ "$?" -ne 0 ]; then
     echo -ne "\r\033[0;31mFAIL\033[0m ${cmd_explanation}\n"
     cat /tmp/log.txt
-    rm /tmp/log.txt
+    rm -rf /tmp/log.txt
     trap - EXIT
     return 1
   else
     echo -ne "\r\033[0;32mDONE\033[0m ${cmd_explanation}\n"
-    rm /tmp/log.txt
+    rm  -rf /tmp/log.txt
     trap - EXIT
     return 0
   fi
@@ -304,8 +328,7 @@ utils::exec_cmd_on_remote_hosts() {
     IFS=':' read -r host port <<< "${remote_host}"
     {
       local res
-      res=$(ssh -p ${port} ${host} "${cmd}" > /tmp/log_${host}_${port}.txt \
-        2> /tmp/log_${host}_${port}.txt)
+      res=$(ssh -p ${port} ${host} "${cmd}" > /tmp/log_${host}_${port}.txt 2>&1)
       if [ "$?" -ne 0 ]; then
         exit 1
       fi
@@ -337,7 +360,7 @@ utils::exec_cmd_on_remote_hosts() {
     fi
     index=$((index + 1))
   done
-  rm /tmp/log_*.txt
+  rm -rf /tmp/log_*.txt
   if ${fail}; then
     echo -ne "\r\033[0;31mFAIL\033[0m ${cmd_explanation}\n"
     trap - EXIT
@@ -347,4 +370,12 @@ utils::exec_cmd_on_remote_hosts() {
     trap - EXIT
     return 0
   fi
+}
+
+utils::skip_cmd() {
+  if ! utils::check_args_eq 1 $#; then
+    exit 1
+  fi
+  local cmd_explanation="${1}"
+  echo -e "\033[0;33mSKIP\033[0m ${cmd_explanation}"
 }
