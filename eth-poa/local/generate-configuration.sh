@@ -220,7 +220,7 @@ retrieve_static_nodes() {
 }
 
 #######################################
-# Aggregate the static nodes file
+# Aggregate the static nodes files
 # Globals:
 #   None
 # Arguments:
@@ -249,6 +249,30 @@ aggregate_static_nodes() {
   done
   echo ']' >> ./tmp/static-nodes.json
   trap - ERR
+}
+
+#######################################
+# Send the static nodes file to the hosts
+# Globals:
+#   None
+# Arguments:
+#   $1: remote hosts list
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+send_static_nodes() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_ge 1 $#; then
+    trap - ERR
+    exit 1
+  fi
+  local remote_hosts_list=("${@:1}")
+  for remote_host in "${remote_hosts_list[@]}"; do
+    IFS=':' read -r host port <<< "${remote_host}"
+    scp -P ${port} ./tmp/static-nodes.json ${host}:~/${DEPLOY_ROOT} &
+  done
 }
 
 #===============================================================================
@@ -301,5 +325,12 @@ utils::exec_cmd "${cmd}" 'Retrieve the static nodes'
 
 cmd='aggregate_static_nodes'
 utils::exec_cmd "${cmd}" 'Aggregate the static nodes'
+
+cmd="send_static_nodes ${remote_hosts_list[@]}"
+utils::exec_cmd "${cmd}" 'Send the static nodes to the hosts'
+
+cmd='./eth-poa/remote/generate-configuration.sh finalize'
+utils::exec_cmd_on_remote_hosts "${cmd}" 'Finalize the hosts' \
+  "${remote_hosts_list[@]}"
 
 trap - ERR

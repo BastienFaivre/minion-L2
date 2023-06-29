@@ -36,6 +36,7 @@ usage() {
   echo '  prepare <nodes names...>'
   echo '  generate'
   echo '  setup'
+  echo '  finalize'
 }
 
 #######################################
@@ -132,8 +133,7 @@ generate() {
   if [ ! -f ${DEPLOY_ROOT}/network.tar.gz ]; then
     utils::err "function ${FUNCNAME[0]}(): File ${DEPLOY_ROOT}/network.tar.gz "\
 'not found.'
-    trap - ERR
-    exit 1
+    trap - ERRp_no
   fi
   mkdir -p ${NETWORK_ROOT}
   tar -xzf ${DEPLOY_ROOT}/network.tar.gz -C ${NETWORK_ROOT}
@@ -203,7 +203,7 @@ setup() {
   fi
   setup_environment
   if [ ! -f ${DEPLOY_ROOT}/genesis.json ]; then
-    utils::err "function ${FUNCNAME[0]}(): File ${NETWORK_ROOT}/genesis.json "\
+    utils::err "function ${FUNCNAME[0]}(): File ${DEPLOY_ROOT}/genesis.json "\
 'not found.'
     trap - ERR
     exit 1
@@ -228,6 +228,40 @@ setup() {
       >> ${DEPLOY_ROOT}/static-nodes-$(hostname -I | awk '{print $1}').json
     kill ${pid}
   done
+  rm -rf ${DEPLOY_ROOT}/genesis.json
+  trap - ERR
+}
+
+#######################################
+# Copy the static nodes file in all nodes directories
+# Globals:
+#   None
+# Arguments:
+#   None
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+finalize() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_eq 0 $#; then
+    trap - ERR
+    exit 1
+  fi
+  # check that the static-nodes.json file exist
+  if [ ! -f ${DEPLOY_ROOT}/static-nodes.json ]; then
+    utils::err "function ${FUNCNAME[0]}(): File ${DEPLOY_ROOT}/"\
+'static-nodes.json not found.'
+    trap - ERR
+    exit 1
+  fi
+  for dir in ${DEPLOY_ROOT}/*; do
+    test -d ${dir} || continue
+    test -d ${dir}/keystore || continue
+    cp ${DEPLOY_ROOT}/static-nodes.json ${dir}/
+  done
+  rm -rf ${DEPLOY_ROOT}/static-nodes*.json
   trap - ERR
 }
 
@@ -256,6 +290,10 @@ case ${action} in
   'setup')
     cmd="setup $@"
     utils::exec_cmd "${cmd}" 'Setup the host'
+    ;;
+  'finalize')
+    cmd="finalize $@"
+    utils::exec_cmd "${cmd}" 'Finalize the host'
     ;;
   *)
     utils::err "Unknown action ${action}"
