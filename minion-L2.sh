@@ -41,6 +41,7 @@ usage() {
   echo '      root@example.com:1234'
   echo '    Please ALWAYS SPECIFY THE PORT, even if it is the default SSH port'
   echo '  -n, --num-nodes     number of nodes (required for step 3)'
+  echo '  -a, --num-accounts  number of accounts (required for step 3)'
   echo '  -s, --steps         steps to do (default: all)'
   echo '    Format: <step>[,<step>]...'
   echo '    Steps:'
@@ -49,6 +50,8 @@ usage() {
 'minutes)'
   echo '      3: generate the configuration for the Ethereum PoA network'
   echo '      4: start Ethereum PoA network'
+  echo '  -k, --kill          kill the Ethereum PoA network (overrides all '\
+'steps)'
 }
 
 #######################################
@@ -92,6 +95,7 @@ welcome
 remote_hosts_file=''
 num_nodes=''
 steps=''
+kill=false
 
 while [[ $# -gt 0 ]]; do
   case ${1} in
@@ -107,9 +111,17 @@ while [[ $# -gt 0 ]]; do
       num_nodes=${2}
       shift 2
       ;;
+    -a|--num-accounts)
+      num_accounts=${2}
+      shift 2
+      ;;
     -s|--steps)
       steps=${2}
       shift 2
+      ;;
+    -k|--kill)
+      kill=true
+      shift
       ;;
     *)
       utils::err "Unknown option: ${1}"
@@ -119,8 +131,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "${num_nodes}" ]] && [[ -z "${remote_hosts_file}" ]] && \
-  [[ -z "${steps}" ]]; then
+if [[ -z "${remote_hosts_file}" ]] && [[ -z "${num_nodes}" ]] && \
+  [[ -z "${num_accounts}" ]] && [[ "${steps}" == '' ]] && \
+  [[ "${kill}" == false ]]; then
   usage
   exit 0
 fi
@@ -131,8 +144,17 @@ if ! utils::check_required_arg 'Remote hosts file' "${remote_hosts_file}"; then
   exit 1
 fi
 
+if [[ "${kill}" == true ]]; then
+  cmd="./eth-poa/local/eth-poa.sh ${remote_hosts_file} kill"
+  utils::exec_cmd "${cmd}" 'Kill Ethereum PoA network'
+  echo ''
+  echo 'Task completed successfully!'
+  exit 0
+fi
+
 if [[ "${steps}" == *'3'* ]] && ! utils::check_required_arg 'Number of nodes' \
-  "${num_nodes}"; then
+  "${num_nodes}" && ! utils::check_required_arg 'Number of accounts' \
+  "${num_accounts}"; then
   echo ''
   usage
   exit 1
@@ -158,7 +180,7 @@ fi
 
 if [[ "${steps}" == '' ]] || [[ "${steps}" == *'3'* ]]; then
   cmd="./eth-poa/local/generate-configuration.sh ${remote_hosts_file} "\
-"${num_nodes}"
+"${num_nodes} ${num_accounts}"
   utils::exec_cmd "${cmd}" 'Generate the configuration for the Ethereum PoA '\
 'network'
 else

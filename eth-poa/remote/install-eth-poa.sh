@@ -48,7 +48,8 @@ usage() {
 install_necessary_packages() {
   trap 'exit 1' ERR
   sudo apt-get update
-  sudo apt-get install -y git make build-essential
+  sudo apt-get install -y git make build-essential python3 python3-pip
+  sudo pip3 install web3
   trap - ERR
 }
 

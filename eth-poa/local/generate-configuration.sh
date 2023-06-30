@@ -32,7 +32,8 @@ cd "$(dirname "${0}")"
 #   None
 #######################################
 usage() {
-  echo 'Usage: $(basename ${0}) <remote hosts file> <number of nodes>'
+  echo 'Usage: $(basename ${0}) <remote hosts file> <number of nodes> '\
+'<number of accounts>'
 }
 
 #######################################
@@ -141,7 +142,7 @@ send_accounts() {
 }
 
 #######################################
-# Retrieve the genesis file from the host
+# Retrieve the genesis file and the account from the host
 # Globals:
 #   None
 # Arguments:
@@ -161,6 +162,7 @@ retrieve_configuration() {
   local host=$(echo "${remote_host}" | cut -d: -f1)
   local port=$(echo "${remote_host}" | cut -d: -f2)
   scp -P ${port} ${host}:~/${NETWORK_ROOT}/genesis.json ./tmp
+  scp -P ${port} -r ${host}:~/${NETWORK_ROOT}/accounts ./tmp
   ssh -p ${port} ${host} "rm -rf ~/${NETWORK_ROOT}"
   trap - ERR
 }
@@ -282,7 +284,7 @@ send_static_nodes() {
 # MAIN
 #===============================================================================
 
-if ! utils::check_args_eq 2 $#; then
+if ! utils::check_args_eq 3 $#; then
   usage
   exit 1
 fi
@@ -295,6 +297,7 @@ remote_hosts_file="$(cd "$(dirname ${remote_hosts_file})"; pwd)/\
 $(basename "${remote_hosts_file}")"
 remote_hosts_list=($(utils::create_remote_hosts_list ${remote_hosts_file}))
 number_of_nodes=${2}
+number_of_accounts=${3}
 
 trap 'exit 1' ERR
 
@@ -309,7 +312,7 @@ first_remote_host=${remote_hosts_list[0]}
 cmd="send_accounts ${first_remote_host}"
 utils::exec_cmd "${cmd}" 'Send the accounts to one host'
 
-cmd='./eth-poa/remote/generate-configuration.sh generate'
+cmd="./eth-poa/remote/generate-configuration.sh generate ${number_of_accounts}"
 utils::exec_cmd_on_remote_hosts "${cmd}" 'Generate the configuration' \
   "${first_remote_host}"
 

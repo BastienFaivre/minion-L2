@@ -34,7 +34,7 @@ usage() {
   echo "Usage: $(basename ${0}) <action> [options...]"
   echo 'Actions:'
   echo '  prepare <nodes names...>'
-  echo '  generate'
+  echo '  generate <number of accounts>'
   echo '  setup'
   echo '  finalize'
 }
@@ -122,11 +122,12 @@ prepare() {
 #######################################
 generate() {
   trap 'exit 1' ERR
-  if ! utils::check_args_eq 0 $#; then
+  if ! utils::check_args_eq 1 $#; then
     trap - ERR
     exit 1
   fi
   setup_environment
+  local num_accounts=${1}
   if [ ! -f ${DEPLOY_ROOT}/network.tar.gz ]; then
     utils::err "function ${FUNCNAME[0]}(): File ${DEPLOY_ROOT}/network.tar.gz "\
 'not found.'
@@ -150,8 +151,24 @@ generate() {
   for i in {1..64}; do
     extradata+='00'
   done
-  # TODO pre-fund accounts from keyfile
+  mkdir -p ${NETWORK_ROOT}/accounts
+  mkdir -p ${NETWORK_ROOT}/accounts/keystore
+  mkdir -p ${NETWORK_ROOT}/tmp
   local alloc=''
+  for i in $(seq 1 ${num_accounts}); do
+    printf "%d\n%d\n" ${i} ${i} | geth --datadir ${NETWORK_ROOT}/tmp \
+      account new > /dev/null 2>&1
+    cp ${NETWORK_ROOT}/tmp/keystore/* ${NETWORK_ROOT}/accounts/keystore/
+    keypath=$(ls ${NETWORK_ROOT}/tmp/keystore/UTC--*)
+    address=${keypath##*--}
+    private=$(./eth-poa/remote/extract.py ${keypath} ${i})
+    echo ${address}:${private} > ${NETWORK_ROOT}/accounts/account_${i}
+    alloc+='"'${address}'": {"balance": "'${ACCOUNT_BALANCE}'"}'
+    if [ ${i} -ne ${num_accounts} ]; then
+      alloc+=', '
+    fi
+    rm -rf ${NETWORK_ROOT}/tmp/*
+  done
   cat > ${NETWORK_ROOT}/genesis.json <<EOF
 {
   "config": {
