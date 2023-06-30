@@ -50,8 +50,8 @@ usage() {
 'minutes)'
   echo '      3: generate the configuration for the Ethereum PoA network'
   echo '      4: start Ethereum PoA network'
-  echo '  -k, --kill          kill the Ethereum PoA network (overrides all '\
-'steps)'
+  echo '  -k, --kill          kill the Ethereum PoA network'
+  echo '  -c, --clean         clean the remote hosts'
 }
 
 #######################################
@@ -96,6 +96,7 @@ remote_hosts_file=''
 num_nodes=''
 steps=''
 kill=false
+clean=false
 
 while [[ $# -gt 0 ]]; do
   case ${1} in
@@ -123,6 +124,10 @@ while [[ $# -gt 0 ]]; do
       kill=true
       shift
       ;;
+    -c|--clean)
+      clean=true
+      shift
+      ;;
     *)
       utils::err "Unknown option: ${1}"
       usage
@@ -133,7 +138,7 @@ done
 
 if [[ -z "${remote_hosts_file}" ]] && [[ -z "${num_nodes}" ]] && \
   [[ -z "${num_accounts}" ]] && [[ "${steps}" == '' ]] && \
-  [[ "${kill}" == false ]]; then
+  [[ "${kill}" == false ]] && [[ "${clean}" == false ]]; then
   usage
   exit 0
 fi
@@ -147,6 +152,14 @@ fi
 if [[ "${kill}" == true ]]; then
   cmd="./eth-poa/local/eth-poa.sh ${remote_hosts_file} kill"
   utils::exec_cmd "${cmd}" 'Kill Ethereum PoA network'
+  echo ''
+  echo 'Task completed successfully!'
+  exit 0
+fi
+
+if [[ "${clean}" == true ]]; then
+  cmd="./scripts/local/clean.sh ${remote_hosts_file}"
+  utils::exec_cmd "${cmd}" 'Clean remote hosts'
   echo ''
   echo 'Task completed successfully!'
   exit 0
