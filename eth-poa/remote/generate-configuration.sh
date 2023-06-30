@@ -89,7 +89,8 @@ prepare() {
   rm -rf ${DEPLOY_ROOT}
   mkdir -p ${DEPLOY_ROOT}
   local port=7000
-  local rpcport=9000
+  local rpcport=8000
+  local wsport=9000
   local dir
   for name in "$@"; do
     dir=${DEPLOY_ROOT}/${name}
@@ -98,9 +99,11 @@ prepare() {
     printf "\n\n" | geth account new --datadir ${dir}
     echo ${port} > ${dir}/port
     echo ${rpcport} > ${dir}/rpcport
+    echo ${wsport} > ${dir}/wsport
     touch ${dir}/password
     port=$((port+1))
     rpcport=$((rpcport+1))
+    wsport=$((wsport+1))
   done
   trap - ERR
 }

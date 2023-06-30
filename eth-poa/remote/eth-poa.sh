@@ -91,9 +91,10 @@ start() {
     test -d ${dir}/keystore || continue
     local port=$(cat ${dir}/port)
     local rpcport=$(cat ${dir}/rpcport)
-    if [ -z ${port} ] || [ -z ${rpcport} ]; then
-      utils::err "function ${FUNCNAME[0]}(): Could not find port or rpcport "\
-"for node ${dir}"
+    local wsport=$(cat ${dir}/wsport)
+    if [ -z ${port} ] || [ -z ${rpcport} ] || [ -z ${wsport} ]; then
+      utils::err "function ${FUNCNAME[0]}(): Could not find port, rpcport or "\
+"wsport for node ${dir}"
       trap - ERR
       exit 1
     fi
@@ -115,9 +116,11 @@ start() {
       --miner.etherbase ${address} \
       --verbosity 2 \
       --networkid ${NETWORK_ID} \
+      --authrpc.addr 0.0.0.0 \
+      --authrpc.port ${rpcport} \
       --ws \
       --ws.addr 0.0.0.0 \
-      --ws.port ${rpcport} \
+      --ws.port ${wsport} \
       --ws.api admin,eth,debug,miner,net,txpool,personal,web3 \
       --ws.origins '*' \
       --port ${port} \
