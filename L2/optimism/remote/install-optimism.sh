@@ -3,16 +3,15 @@
 # Author: Bastien Faivre
 # Project: EPFL, DCL, Performance and Security Evaluation of Layer 2 Blockchain
 #          Systems
-# Date: June 2023
-# Description: Install and build Ethereum Proof of Authority
-# Source: https://github.com/Blockchain-Benchmarking/minion/blob/cleanup/script/remote/linux/apt/install-poa
+# Date: July 2023
+# Description: Install and build Optimism Stack components
 #===============================================================================
 
 #===============================================================================
 # IMPORTS
 #===============================================================================
 
-. eth-poa/constants.sh
+. L2/optimism/constants.sh
 . scripts/utils.sh
 
 #===============================================================================
@@ -48,8 +47,14 @@ usage() {
 install_necessary_packages() {
   trap 'exit 1' ERR
   sudo apt-get update
-  sudo apt-get install -y git make build-essential python3 python3-pip
-  sudo pip3 install web3
+  sudo apt-get install -y git curl make jq direnv
+  curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -
+  sudo apt-get install -y nodejs
+  sudo npm install -g n && sudo n latest
+  sudo npm install -g pnpm
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  source ${HOME}/.cargo/env
+  echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
   trap - ERR
 }
 
@@ -85,7 +90,7 @@ install_go() {
 }
 
 #######################################
-# Initialize directories
+# Initialize the directories
 # Globals:
 #   None
 # Arguments:
@@ -97,13 +102,12 @@ install_go() {
 #######################################
 initialize_directories() {
   trap 'exit 1' ERR
-  mkdir -p ${INSTALL_FOLDER}
-  rm -rf ${INSTALL_ROOT}
+  rm -rf ${INSTALL_FOLDER}/optimism ${INSTALL_FOLDER}/op-geth
   trap - ERR
 }
 
 #######################################
-# Clone and build Geth
+# Clone and build the Optimism monorepo
 # Globals:
 #   None
 # Arguments:
@@ -113,12 +117,33 @@ initialize_directories() {
 # Returns:
 #   None
 #######################################
-clone_and_build_geth() {
+clone_and_build_OP_monorepo() {
   trap 'exit 1' ERR
-  git clone ${GETH_URL} ${INSTALL_ROOT}
-  cd ${INSTALL_ROOT}
-  git checkout ${GETH_BRANCH}
-  make all
+  git clone ${OP_MONOREPO_URL} ${INSTALL_FOLDER}/optimism
+  cd ${INSTALL_FOLDER}/optimism
+  pnpm install
+  pnpm install:foundry
+  make op-node op-batcher op-proposer
+  pnpm build
+  trap - ERR
+}
+
+#######################################
+# Clone and build Optimism Geth
+# Globals:
+#   None
+# Arguments:
+#  None
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+clone_and_build_OP_geth() {
+  trap 'exit 1' ERR
+  git clone ${OP_GETH_URL} ${INSTALL_FOLDER}/op-geth
+  cd ${INSTALL_FOLDER}/op-geth
+  make geth
   trap - ERR
 }
 
@@ -151,6 +176,8 @@ fi
 
 utils::exec_cmd 'initialize_directories' 'Initialize directories'
 
-utils::exec_cmd 'clone_and_build_geth' 'Clone and build Geth'
+utils::exec_cmd 'clone_and_build_OP_monorepo' 'Clone and build Optimism monorepo'
+
+utils::exec_cmd 'clone_and_build_OP_geth' 'Clone and build Optimism Geth'
 
 trap - ERR

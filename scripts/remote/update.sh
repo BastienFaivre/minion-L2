@@ -4,16 +4,14 @@
 # Project: EPFL, DCL, Performance and Security Evaluation of Layer 2 Blockchain
 #          Systems
 # Date: June 2023
-# Description: Clean the remote hosts
+# Description: Update the host
 #===============================================================================
 
 #===============================================================================
 # IMPORTS
 #===============================================================================
 
-caller_dir=$(pwd)
-cd "$(dirname "${0}")"
-. ../utils.sh
+. scripts/utils.sh
 
 #===============================================================================
 # FUNCTIONS
@@ -31,32 +29,43 @@ cd "$(dirname "${0}")"
 #   None
 #######################################
 usage() {
-  echo "Usage: $(basename ${0}) <remote hosts file>"
+  echo "Usage: $(basename ${0})"
+}
+
+#######################################
+# Update the host
+# Globals:
+#   None
+# Arguments:
+#   None
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+update_host() {
+  trap 'exit 1' ERR
+  sudo apt-get update
+  sudo apt-get --with-new-pkgs upgrade -y
+  sudo apt-get clean
+  sudo apt-get autoclean
+  sudo apt-get autoremove --purge -y
+  sudo snap refresh
+  trap - ERR
 }
 
 #===============================================================================
 # MAIN
 #===============================================================================
 
-if ! utils::check_args_eq 1 $#; then
+if ! utils::check_args_eq 0 $#; then
   usage
   exit 1
 fi
-remote_hosts_file="$caller_dir/${1}"
-if [ ! -f "${remote_hosts_file}" ]; then
-  utils::err "function main(): File ${remote_hosts_file} does not exist."
-  usage
-  exit 1
-fi
-remote_hosts_file="$(cd "$(dirname "${remote_hosts_file}")"; pwd)/\
-$(basename "${remote_hosts_file}")"
-remote_hosts_list=($(utils::create_remote_hosts_list ${remote_hosts_file}))
 
 trap 'exit 1' ERR
 
-cmd='sudo rm -rf *; sudo rm -rf /usr/local/go; sed -i "/\/usr\/local\/go/d" \
-~/.profile; rm -rf ~/.cargo; sed -i "/\.cargo/d" ~/.bashrc'
-utils::exec_cmd_on_remote_hosts "${cmd}" 'Clean remote hosts' \
-  "${remote_hosts_list[@]}"
+utils::ask_sudo
+utils::exec_cmd update_host 'Update host'
 
 trap - ERR

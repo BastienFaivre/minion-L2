@@ -4,7 +4,7 @@
 # Project: EPFL, DCL, Performance and Security Evaluation of Layer 2 Blockchain
 #          Systems
 # Date: June 2023
-# Description: Variables used in the remote scripts
+# Description: Variables used for Ethereum Proof of Authority
 #===============================================================================
 
 readonly INSTALL_FOLDER='install'
