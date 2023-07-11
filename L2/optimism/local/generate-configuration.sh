@@ -32,7 +32,8 @@ cd "$(dirname "${0}")"
 #   None
 #######################################
 usage() {
-  echo 'Usage: $(basename ${0}) <remote hosts file> <number of nodes>'
+  echo 'Usage: $(basename ${0}) <remote hosts file> <number of nodes>' \
+'<L1 node url> <L1 master account file>'
 }
 
 #######################################
@@ -50,3 +51,35 @@ usage() {
 #===============================================================================
 # MAIN
 #===============================================================================
+
+if ! utils::check_args_eq 4 $#; then
+  usage
+  exit 1
+fi
+remote_hosts_file=$caller_dir/${1}
+if [ ! -f ${remote_hosts_file} ]; then
+  utils::err "function main(): File ${remote_hosts_file} does not exist."
+  exit 1
+fi
+remote_hosts_file="$(cd "$(dirname ${remote_hosts_file})"; pwd)/\
+$(basename "${remote_hosts_file}")"
+remote_hosts_list=($(utils::create_remote_hosts_list ${remote_hosts_file}))
+number_of_nodes=${2}
+l1_node_url=${3}
+l1_master_account_file=$caller_dir/${4}
+l1_master_account_private_key=$(cat ${l1_master_account_file} | cut -d':' -f2) 
+
+trap 'exit 1' ERR
+
+cmd='./L2/optimism/remote/generate-configuration.sh prepare'
+utils::exec_cmd_on_remote_hosts "${cmd}" 'Prepare remote hosts' \
+  "${remote_hosts_list[@]}"
+
+first_remote_host=${remote_hosts_list[0]}
+
+cmd='./L2/optimism/remote/generate-configuration.sh generate-keys '\
+"${l1_node_url} ${l1_master_account_private_key}"
+utils::exec_cmd_on_remote_hosts "${cmd}" 'Generate and fund accounts' \
+  "${first_remote_host}"
+
+trap - ERR

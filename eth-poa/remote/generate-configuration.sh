@@ -88,6 +88,7 @@ prepare() {
   setup_environment
   rm -rf ${DEPLOY_ROOT}
   mkdir -p ${DEPLOY_ROOT}
+  local authrpcport=6000
   local port=7000
   local rpcport=8000
   local wsport=9000
@@ -97,10 +98,12 @@ prepare() {
     mkdir -p ${dir}
     # \n\n is to skip the password confirmation
     printf "\n\n" | geth account new --datadir ${dir}
+    echo ${authrpcport} > ${dir}/authrpcport
     echo ${port} > ${dir}/port
     echo ${rpcport} > ${dir}/rpcport
     echo ${wsport} > ${dir}/wsport
     touch ${dir}/password
+    authrpcport=$((authrpcport+1))
     port=$((port+1))
     rpcport=$((rpcport+1))
     wsport=$((wsport+1))
@@ -177,7 +180,7 @@ generate() {
   cat > ${NETWORK_ROOT}/genesis.json <<EOF
 {
   "config": {
-    "chainId": ${NETWORK_ID},
+    "chainId": ${CHAIN_ID},
     "homesteadBlock": 0,
     "eip150Block": 0,
     "eip155Block": 0,

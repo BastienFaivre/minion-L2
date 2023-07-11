@@ -47,7 +47,7 @@ usage() {
 install_necessary_packages() {
   trap 'exit 1' ERR
   sudo apt-get update
-  sudo apt-get install -y git curl make jq direnv build-essential
+  sudo apt-get install -y git curl make jq direnv build-essential python3-pip
   if ! grep ~/.bashrc -e 'eval "$(direnv hook bash)"' &> /dev/null
   then
     echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
@@ -58,6 +58,7 @@ install_necessary_packages() {
   sudo npm install -g pnpm yarn
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
   source ${HOME}/.cargo/env
+  pip3 install web3 eth-account
   trap - ERR
 }
 

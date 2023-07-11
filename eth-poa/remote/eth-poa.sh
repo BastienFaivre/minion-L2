@@ -89,12 +89,14 @@ start() {
   for dir in ${DEPLOY_ROOT}/n*; do
     test -d ${dir} || continue
     test -d ${dir}/keystore || continue
+    local authrpcport=$(cat ${dir}/authrpcport)
     local port=$(cat ${dir}/port)
     local rpcport=$(cat ${dir}/rpcport)
     local wsport=$(cat ${dir}/wsport)
-    if [ -z ${port} ] || [ -z ${rpcport} ] || [ -z ${wsport} ]; then
-      utils::err "function ${FUNCNAME[0]}(): Could not find port, rpcport or "\
-"wsport for node ${dir}"
+    if [ -z ${authrpcport} ] [ -z ${port} ] || [ -z ${rpcport} ] || \
+      [ -z ${wsport} ]; then
+      utils::err "function ${FUNCNAME[0]}(): Could not find authrpcport, port,"\
+" rpcport or wsport for node ${dir}"
       trap - ERR
       exit 1
     fi
@@ -115,15 +117,20 @@ start() {
       --mine \
       --miner.etherbase ${address} \
       --verbosity 2 \
-      --networkid ${NETWORK_ID} \
+      --networkid ${CHAIN_ID} \
       --authrpc.addr 0.0.0.0 \
-      --authrpc.port ${rpcport} \
+      --authrpc.port ${authrpcport} \
       --ws \
       --ws.addr 0.0.0.0 \
       --ws.port ${wsport} \
-      --ws.api admin,eth,debug,miner,net,txpool,personal,web3 \
+      --ws.api admin,eth,debug,miner,net,txpool,web3 \
       --ws.origins '*' \
       --port ${port} \
+      --http \
+      --http.addr 0.0.0.0 \
+      --http.port ${rpcport} \
+      --http.corsdomain '*' \
+      --http.api admin,eth,debug,miner,net,txpool,web3 \
       --config ${dir}/config.toml \
       > ${dir}/out.log 2> ${dir}/err.log &
     local pid=$!
