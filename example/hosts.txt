@@ -3,3 +3,8 @@ user@dclbigmem.epfl.ch:2213
 user@dclbigmem.epfl.ch:2214
 user@dclbigmem.epfl.ch:2215
 user@dclbigmem.epfl.ch:2216
+user@dclbigmem.epfl.ch:2217
+user@dclbigmem.epfl.ch:2218
+user@dclbigmem.epfl.ch:2219
+user@dclbigmem.epfl.ch:2220
+user@dclbigmem.epfl.ch:2221

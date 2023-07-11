@@ -47,14 +47,17 @@ usage() {
 install_necessary_packages() {
   trap 'exit 1' ERR
   sudo apt-get update
-  sudo apt-get install -y git curl make jq direnv
+  sudo apt-get install -y git curl make jq direnv build-essential
+  if ! grep ~/.bashrc -e 'eval "$(direnv hook bash)"' &> /dev/null
+  then
+    echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
+  fi
   curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -
   sudo apt-get install -y nodejs
   sudo npm install -g n && sudo n latest
-  sudo npm install -g pnpm
-  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  sudo npm install -g pnpm yarn
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
   source ${HOME}/.cargo/env
-  echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
   trap - ERR
 }
 
@@ -122,7 +125,9 @@ clone_and_build_OP_monorepo() {
   git clone ${OP_MONOREPO_URL} ${INSTALL_FOLDER}/optimism
   cd ${INSTALL_FOLDER}/optimism
   pnpm install
-  pnpm install:foundry
+  curl -L https://foundry.paradigm.xyz | bash
+  export PATH="$PATH:/home/user/.foundry/bin"
+  pnpm update:foundry
   make op-node op-batcher op-proposer
   pnpm build
   trap - ERR
