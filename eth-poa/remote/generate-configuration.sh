@@ -155,15 +155,20 @@ generate() {
   mkdir -p ${NETWORK_ROOT}/accounts/keystore
   mkdir -p ${NETWORK_ROOT}/tmp
   local alloc=''
-  for i in $(seq 1 ${num_accounts}); do
+  for i in $(seq 0 ${num_accounts}); do
     printf "%d\n%d\n" ${i} ${i} | geth --datadir ${NETWORK_ROOT}/tmp \
       account new > /dev/null 2>&1
     cp ${NETWORK_ROOT}/tmp/keystore/* ${NETWORK_ROOT}/accounts/keystore/
     keypath=$(ls ${NETWORK_ROOT}/tmp/keystore/UTC--*)
     address=${keypath##*--}
     private=$(./eth-poa/remote/extract.py ${keypath} ${i})
-    echo ${address}:${private} > ${NETWORK_ROOT}/accounts/account_${i}
-    alloc+='"'${address}'": {"balance": "'${ACCOUNT_BALANCE}'"}'
+    if [ ${i} -eq 0 ]; then
+      echo ${address}:${private} > ${NETWORK_ROOT}/accounts/account_master
+      alloc+='"'${address}'": {"balance": "'${MASTER_BALANCE}'"}'
+    else
+      echo ${address}:${private} > ${NETWORK_ROOT}/accounts/account_${i}
+      alloc+='"'${address}'": {"balance": "'${ACCOUNT_BALANCE}'"}'
+    fi
     if [ ${i} -ne ${num_accounts} ]; then
       alloc+=', '
     fi
