@@ -32,7 +32,9 @@
 usage() {
   echo "Usage: $(basename ${0}) <action> [options...]"
   echo 'Actions:'
+  echo '  prepare'
   echo '  generate-keys <L1 node url> <L1 master account private key>'
+  echo '  configure-network <L1 node url>'
 }
 
 #######################################
@@ -48,7 +50,8 @@ usage() {
 #######################################
 setup_environment() {
   trap 'exit 1' ERR
-  if [ ! -d ${INSTALL_FOLDER} ]; then
+  if [ ! -d ${INSTALL_FOLDER}/optimism ] || [ ! -d ${INSTALL_FOLDER}/op-geth ];
+  then
     utils::err "function ${FUNCNAME[0]}(): Optimism is not installed. Please "\
 'run install-optimism.sh first.'
     trap - ERR
@@ -148,6 +151,57 @@ generate_and_funds_accounts() {
   trap - ERR
 }
 
+#######################################
+# Configure the network
+# Globals:
+#   None
+# Arguments:
+#   $1: L1 node url
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+configure_network() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_eq 1 $#; then
+    trap - ERR
+    exit 1
+  fi
+  setup_environment
+  local l1_node_url=${1}
+  local readonly DIR=${INSTALL_FOLDER}/optimism/packages/contracts-bedrock
+  cp ${DIR}/.envrc.example ${DIR}/.envrc
+  sed -i "s|export ETH_RPC_URL=.*|export ETH_RPC_URL=${l1_node_url}|g" \
+    ${DIR}/.envrc
+  local private_key=$(cat ${NETWORK_ROOT}/accounts/account_admin \
+    | cut -d':' -f2)
+  sed -i "s|export PRIVATE_KEY=.*|export PRIVATE_KEY=${private_key}|g" \
+    ${DIR}/.envrc
+  direnv allow ${DIR}
+  local output=$(cast block --rpc-url ${l1_node_url} | grep -E \
+    "(timestamp|hash|number)")
+  local hash=$(echo "$output" | grep "hash" | awk '{print $2}')
+  local timestamp=$(echo "$output" | grep "timestamp" | awk '{print $2}')
+  local number=$(echo "$output" | grep "number" | awk '{print $2}')
+  local admin_address=$(cat ${NETWORK_ROOT}/accounts/account_admin \
+    | cut -d':' -f1)
+  local batcher_address=$(cat ${NETWORK_ROOT}/accounts/account_batcher \
+    | cut -d':' -f1)
+  local proposer_address=$(cat ${NETWORK_ROOT}/accounts/account_proposer \
+    | cut -d':' -f1)
+  local sequencer_address=$(cat ${NETWORK_ROOT}/accounts/account_sequencer \
+    | cut -d':' -f1)
+  sed -i "s/ADMIN/${admin_address}/g; \
+    s/BATCHER/${batcher_address}/g; \
+    s/PROPOSER/${proposer_address}/g; \
+    s/SEQUENCER/${sequencer_address}/g; \
+    s/BLOCKHASH/${hash}/g; \
+    s/TIMESTAMP/${timestamp}/g" \
+    ${DIR}/deploy-config/getting-started.json
+  trap - ERR
+}
+
 #===============================================================================
 # MAIN
 #===============================================================================
@@ -169,6 +223,10 @@ case ${action} in
   'generate-keys')
     cmd="generate_and_funds_accounts ${@}"
     utils::exec_cmd "${cmd}" 'Generate and funds accounts'
+    ;;
+  'configure-network')
+    cmd="configure_network ${@}"
+    utils::exec_cmd "${cmd}" 'Configure network'
     ;;
   *)
     utils::err "Unknown action: ${action}"

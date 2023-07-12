@@ -37,16 +37,31 @@ usage() {
 }
 
 #######################################
-# TODO
+# Retrieve the accounts from the node
 # Globals:
 #   None
 # Arguments:
-#   None
+#   $1: remote host
 # Outputs:
 #   None
 # Returns:
 #   None
 #######################################
+retrieve_accounts() {
+  trap 'exit 1' ERRd
+  if ! utils::check_args_eq 1 $#; then
+    trap - ERR
+    exit 1
+  fi
+  local remote_host=${1}
+  local host=$(echo ${remote_host} | cut -d':' -f1)
+  local port=$(echo ${remote_host} | cut -d':' -f2)
+  rm -rf ./tmp
+  mkdir -p ./tmp
+  mkdir -p ./tmp/accounts
+  scp -P ${port} ${host}:${NETWORK_ROOT}/accounts/* ./tmp/accounts
+  trap - ERR
+}
 
 #===============================================================================
 # MAIN
@@ -80,6 +95,14 @@ first_remote_host=${remote_hosts_list[0]}
 cmd='./L2/optimism/remote/generate-configuration.sh generate-keys '\
 "${l1_node_url} ${l1_master_account_private_key}"
 utils::exec_cmd_on_remote_hosts "${cmd}" 'Generate and fund accounts' \
+  "${first_remote_host}"
+
+cmd="retrieve_accounts ${first_remote_host}"
+utils::exec_cmd "${cmd}" 'Retrieve accounts'
+
+cmd='./L2/optimism/remote/generate-configuration.sh configure-network '\
+"${l1_node_url}"
+utils::exec_cmd_on_remote_hosts "${cmd}" 'Configure network' \
   "${first_remote_host}"
 
 trap - ERR
