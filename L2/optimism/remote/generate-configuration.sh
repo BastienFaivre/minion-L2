@@ -227,6 +227,7 @@ deploy_L1_contracts() {
   local private_key=$(cat ${NETWORK_ROOT}/accounts/account_admin \
     | cut -d':' -f2)
   cd ${INSTALL_FOLDER}/optimism/packages/contracts-bedrock
+  direnv allow . && eval "$(direnv export bash)"
   mkdir deployments/getting-started
   forge script scripts/Deploy.s.sol:Deploy --private-key ${private_key} \
     --broadcast --rpc-url ${l1_node_url} --legacy
