@@ -117,37 +117,29 @@ generate_and_funds_accounts() {
   mkdir -p ${ACCOUNTS_FOLDER}
   # Admin
   local output=$(cast wallet new)
-  local address=$(echo "$output" | grep "Address:" | awk '{print $2}' | \
-    sed 's/^0x//')
-  local private_key=$(echo "$output" | grep "Private key:" | awk '{print $3}' \
-    | sed 's/^0x//')
+  local address=$(echo "$output" | grep "Address:" | awk '{print $2}')
+  local private_key=$(echo "$output" | grep "Private key:" | awk '{print $3}')
   echo ${address}:${private_key} > ${ACCOUNTS_FOLDER}/account_admin
   ./L2/optimism/remote/send.py ${l1_node_url} ${CHAIN_ID} ${l1_master_sk} ${address} \
     ${ADMIN_BALANCE}
   # Batcher
   output=$(cast wallet new)
-  address=$(echo "$output" | grep "Address:" | awk '{print $2}' | \
-    sed 's/^0x//')
-  private_key=$(echo "$output" | grep "Private key:" | awk '{print $3}' \
-    | sed 's/^0x//')
+  address=$(echo "$output" | grep "Address:" | awk '{print $2}')
+  private_key=$(echo "$output" | grep "Private key:" | awk '{print $3}')
   echo ${address}:${private_key} > ${ACCOUNTS_FOLDER}/account_batcher
   ./L2/optimism/remote/send.py ${l1_node_url} ${CHAIN_ID} ${l1_master_sk} ${address} \
     ${BATCHER_BALANCE}
   # Proposer
   output=$(cast wallet new)
-  address=$(echo "$output" | grep "Address:" | awk '{print $2}' | \
-    sed 's/^0x//')
-  private_key=$(echo "$output" | grep "Private key:" | awk '{print $3}' \
-    | sed 's/^0x//')
+  address=$(echo "$output" | grep "Address:" | awk '{print $2}')
+  private_key=$(echo "$output" | grep "Private key:" | awk '{print $3}')
   echo ${address}:${private_key} > ${ACCOUNTS_FOLDER}/account_proposer
   ./L2/optimism/remote/send.py ${l1_node_url} ${CHAIN_ID} ${l1_master_sk} ${address} \
     ${PROPOSER_BALANCE}
   # Sequencer
   output=$(cast wallet new)
-  address=$(echo "$output" | grep "Address:" | awk '{print $2}' | \
-    sed 's/^0x//')
-  private_key=$(echo "$output" | grep "Private key:" | awk '{print $3}' \
-    | sed 's/^0x//')
+  address=$(echo "$output" | grep "Address:" | awk '{print $2}')
+  private_key=$(echo "$output" | grep "Private key:" | awk '{print $3}')
   echo ${address}:${private_key} > ${ACCOUNTS_FOLDER}/account_sequencer
   trap - ERR
 }
@@ -230,9 +222,9 @@ deploy_L1_contracts() {
   direnv allow . && eval "$(direnv export bash)"
   mkdir deployments/getting-started
   forge script scripts/Deploy.s.sol:Deploy --private-key ${private_key} \
-    --broadcast --rpc-url ${l1_node_url} --legacy
+    --broadcast --rpc-url ${l1_node_url}
   forge script scripts/Deploy.s.sol:Deploy --sig 'sync()' --private-key \
-    ${private_key} --broadcast --rpc-url ${l1_node_url} --legacy
+    ${private_key} --broadcast --rpc-url ${l1_node_url}
   trap - ERR
 }
 
