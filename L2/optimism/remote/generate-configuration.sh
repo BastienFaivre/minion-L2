@@ -35,6 +35,7 @@ usage() {
   echo '  prepare'
   echo '  generate-keys <L1 node url> <L1 master account private key>'
   echo '  configure-network <L1 node url>'
+  echo '  deploy-L1-contracts <L1 node url>'
 }
 
 #######################################
@@ -197,8 +198,40 @@ configure_network() {
     s/PROPOSER/${proposer_address}/g; \
     s/SEQUENCER/${sequencer_address}/g; \
     s/BLOCKHASH/${hash}/g; \
-    s/TIMESTAMP/${timestamp}/g" \
+    s/TIMESTAMP/${timestamp}/g; \
+    s/\"l1ChainID\": 5,/\"l1ChainID\": ${CHAIN_ID},/g" \
     ${DIR}/deploy-config/getting-started.json
+
+  trap - ERR
+}
+
+#######################################
+# Deploy the L1 contracts
+# Globals:
+#   None
+# Arguments:
+#   $1: L1 node url
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+deploy_L1_contracts() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_eq 1 $#; then
+    trap - ERR
+    exit 1
+  fi
+  setup_environment
+  local l1_node_url=${1}
+  local private_key=$(cat ${NETWORK_ROOT}/accounts/account_admin \
+    | cut -d':' -f2)
+  cd ${INSTALL_FOLDER}/optimism/packages/contracts-bedrock
+  mkdir deployments/getting-started
+  forge script scripts/Deploy.s.sol:Deploy --private-key ${private_key} \
+    --broadcast --rpc-url ${l1_node_url} --legacy
+  forge script scripts/Deploy.s.sol:Deploy --sig 'sync()' --private-key \
+    ${private_key} --broadcast --rpc-url ${l1_node_url} --legacy
   trap - ERR
 }
 
@@ -227,6 +260,10 @@ case ${action} in
   'configure-network')
     cmd="configure_network ${@}"
     utils::exec_cmd "${cmd}" 'Configure network'
+    ;;
+  'deploy-L1-contracts')
+    cmd="deploy_L1_contracts ${@}"
+    utils::exec_cmd "${cmd}" 'Deploy L1 contracts'
     ;;
   *)
     utils::err "Unknown action: ${action}"

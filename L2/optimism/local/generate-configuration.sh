@@ -105,4 +105,9 @@ cmd='./L2/optimism/remote/generate-configuration.sh configure-network '\
 utils::exec_cmd_on_remote_hosts "${cmd}" 'Configure network' \
   "${first_remote_host}"
 
+cmd='./L2/optimism/remote/generate-configuration.sh deploy-L1-contracts '\
+"${l1_node_url}"
+utils::exec_cmd_on_remote_hosts "${cmd}" 'Deploy L1 contracts' \
+  "${first_remote_host}"
+
 trap - ERR
