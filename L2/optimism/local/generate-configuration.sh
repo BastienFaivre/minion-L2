@@ -3,7 +3,7 @@
 # Author: Bastien Faivre
 # Project: EPFL, DCL, Performance and Security Evaluation of Layer 2 Blockchain
 #          Systems
-# Date: June 2023
+# Date: July 2023
 # Description: Prepare the hosts and generate the configuration
 #===============================================================================
 
@@ -37,6 +37,58 @@ usage() {
 }
 
 #######################################
+# Prepare the hosts for the configuration generation
+# Globals:
+#   None
+# Arguments:
+#   $1: number of nodes
+#   $2: remote hosts list
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+prepare() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_ge 2 $#; then
+    trap - ERR
+    exit 1
+  fi
+  local number_of_nodes=${1}
+  local remote_hosts_list=("${@:2}")
+  local number_of_hosts=${#remote_hosts_list[@]}
+  local nodes_per_host=$((number_of_nodes / number_of_hosts))
+  local remainder=$((number_of_nodes % number_of_hosts))
+  local index=0
+  local node_to_assign node_list
+  declare -a host_node_list
+  for remote_host in "${remote_hosts_list[@]}"; do
+    IFS=':' read -r host port <<< "${remote_host}"
+    nodes_to_assign=${nodes_per_host}
+    if [ ${remainder} -gt 0 ]; then
+      nodes_to_assign=$((nodes_to_assign + 1))
+      remainder=$((remainder - 1))
+    fi
+    local node_list=''
+    for ((i = 0; i < nodes_to_assign; i++)); do
+      node_list+="n${index} "
+      index=$((index + 1))
+    done
+    host_node_list+=("${host}:${port}:${node_list}")
+  done
+  local host port node_list
+  for host_node in "${host_node_list[@]}"; do
+    host=$(echo "${host_node}" | cut -d: -f1)
+    port=$(echo "${host_node}" | cut -d: -f2)
+    node_list=$(echo "${host_node}" | cut -d: -f3)
+    cmd="./L2/optimism/remote/generate-configuration.sh prepare ${node_list}"
+    ssh -p ${port} ${host} "${cmd}" &
+  done
+  wait
+  trap - ERR
+}
+
+#######################################
 # Retrieve the accounts from the host
 # Globals:
 #   None
@@ -59,7 +111,7 @@ retrieve_accounts() {
   rm -rf ./tmp
   mkdir -p ./tmp
   mkdir -p ./tmp/accounts
-  scp -P ${port} ${host}:${NETWORK_ROOT}/accounts/* ./tmp/accounts
+  scp -P ${port} ${host}:${DEPLOY_ROOT}/accounts/* ./tmp/accounts
   trap - ERR
 }
 
@@ -111,7 +163,7 @@ send_configuration() {
   for remote_host in "${remote_hosts_list[@]}"; do
     IFS=':' read -r host port <<< "${remote_host}"
     scp -P ${port} ./tmp/genesis.json ./tmp/rollup.json \
-      ${host}:${INSTALL_FOLDER}/optimism/op-node &
+      ${host}:${DEPLOY_ROOT}
   done
   wait
   trap - ERR
@@ -140,9 +192,8 @@ l1_master_account_private_key=$(cat ${l1_master_account_file} | cut -d':' -f2)
 
 trap 'exit 1' ERR
 
-cmd='./L2/optimism/remote/generate-configuration.sh prepare'
-utils::exec_cmd_on_remote_hosts "${cmd}" 'Prepare remote hosts' \
-  "${remote_hosts_list[@]}"
+cmd="prepare ${number_of_nodes} ${remote_hosts_list[@]}"
+utils::exec_cmd "${cmd}" 'Prepare the hosts'
 
 first_remote_host=${remote_hosts_list[0]}
 
@@ -175,8 +226,8 @@ utils::exec_cmd "${cmd}" 'Retrieve configuration'
 cmd="send_configuration ${remote_hosts_list[@]}"
 utils::exec_cmd "${cmd}" 'Send configuration'
 
-cmd='./L2/optimism/remote/generate-configuration.sh initialize-op-geth'
-utils::exec_cmd_on_remote_hosts "${cmd}" 'Initialize op-geth' \
+cmd='./L2/optimism/remote/generate-configuration.sh initialize-nodes'
+utils::exec_cmd_on_remote_hosts "${cmd}" 'Initialize nodes' \
   "${remote_hosts_list[@]}"
 
 trap - ERR

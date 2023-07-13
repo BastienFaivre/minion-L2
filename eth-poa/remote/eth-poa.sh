@@ -56,7 +56,7 @@ setup_environment() {
   export PATH=${PATH}:${HOME}/${INSTALL_ROOT}/build/bin
   if ! command -v geth &> /dev/null
   then
-    utils::err "Geth command not found in ${INSTALL_ROOT}/build/bin"
+    utils::err "geth command not found in ${INSTALL_ROOT}/build/bin"
     trap - ERR
     exit 1
   fi

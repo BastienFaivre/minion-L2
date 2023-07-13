@@ -3,7 +3,7 @@
 # Author: Bastien Faivre
 # Project: EPFL, DCL, Performance and Security Evaluation of Layer 2 Blockchain
 #          Systems
-# Date: June 2023
+# Date: July 2023
 # Description: Generate configuration files for Optimism
 #===============================================================================
 
@@ -37,6 +37,7 @@ usage() {
   echo '  configure-network <L1 node url>'
   echo '  deploy-L1-contracts <L1 node url>'
   echo '  generate-L2-configuration <L1 node url>'
+  echo '  initialize-nodes'
 }
 
 #######################################
@@ -62,14 +63,52 @@ setup_environment() {
   export PATH=/home/user/.foundry/bin/:$PATH
   if ! command -v cast &> /dev/null
   then
-    utils::err "Cast command not found in PATH"
+    utils::err 'Cast command not found in /home/user/.foundry/bin/'
+    trap - ERR
+    exit 1
+  fi
+  if ! command -v forge &> /dev/null
+  then
+    utils::err 'Forge command not found in /home/user/.foundry/bin/'
     trap - ERR
     exit 1
   fi
   export PATH=/usr/local/go/bin/:$PATH
   if ! command -v go &> /dev/null
   then
-    utils::err "Go command not found in PATH"
+    utils::err 'Go command not found in /usr/local/go/bin/'
+    trap - ERR
+    exit 1
+  fi
+  export PATH=${HOME}/${INSTALL_FOLDER}/op-geth/build/bin:$PATH
+  if ! command -v geth &> /dev/null
+  then
+    utils::err 'geth command not found in '\
+"${HOME}/${INSTALL_FOLDER}/op-geth/build/bin"
+    trap - ERR
+    exit 1
+  fi
+  export PATH=${HOME}/${INSTALL_FOLDER}/optimism/op-node/bin:$PATH
+  if ! command -v op-node &> /dev/null
+  then
+    utils::err 'op-node command not found in '\
+"${HOME}/${INSTALL_FOLDER}/optimism/op-node/bin"
+    trap - ERR
+    exit 1
+  fi
+  export PATH=${HOME}/${INSTALL_FOLDER}/optimism/op-batcher/bin:$PATH
+  if ! command -v op-batcher &> /dev/null
+  then
+    utils::err 'op-batcher command not found in '\
+"${HOME}/${INSTALL_FOLDER}/optimism/op-batcher/bin"
+    trap - ERR
+    exit 1
+  fi
+  export PATH=${HOME}/${INSTALL_FOLDER}/optimism/op-proposer/bin:$PATH
+  if ! command -v op-proposer &> /dev/null
+  then
+    utils::err 'op-proposer command not found in '\
+"${HOME}/${INSTALL_FOLDER}/optimism/op-proposer/bin"
     trap - ERR
     exit 1
   fi
@@ -81,7 +120,7 @@ setup_environment() {
 # Globals:
 #   None
 # Arguments:
-#   None
+#   $@: nodes names
 # Outputs:
 #   None
 # Returns:
@@ -96,7 +135,23 @@ prepare() {
   setup_environment
   rm -rf ${DEPLOY_ROOT}
   mkdir -p ${DEPLOY_ROOT}
-  mkdir -p ${NETWORK_ROOT}
+  local authrpcport=6000
+  local port=7000
+  local rpcport=8000
+  local wsport=9000
+  local dir
+  for name in "$@"; do
+    dir=${DEPLOY_ROOT}/${name}
+    mkdir -p ${dir}
+    echo ${authrpcport} > ${dir}/authrpcport
+    echo ${port} > ${dir}/port
+    echo ${rpcport} > ${dir}/rpcport
+    echo ${wsport} > ${dir}/wsport
+    authrpcport=$((authrpcport+1))
+    port=$((port+1))
+    rpcport=$((rpcport+1))
+    wsport=$((wsport+1))
+  done
   cd ${INSTALL_FOLDER}/optimism
   git stash
   trap - ERR
@@ -123,7 +178,7 @@ generate_and_funds_accounts() {
   setup_environment
   local l1_node_url=${1}
   local l1_master_sk=${2}
-  local readonly ACCOUNTS_FOLDER=${NETWORK_ROOT}/accounts
+  local readonly ACCOUNTS_FOLDER=${DEPLOY_ROOT}/accounts
   mkdir -p ${ACCOUNTS_FOLDER}
   # Admin
   local output=$(cast wallet new)
@@ -178,7 +233,7 @@ configure_network() {
   cp ${DIR}/.envrc.example ${DIR}/.envrc
   sed -i "s|export ETH_RPC_URL=.*|export ETH_RPC_URL=${l1_node_url}|g" \
     ${DIR}/.envrc
-  local private_key=$(cat ${NETWORK_ROOT}/accounts/account_admin \
+  local private_key=$(cat ${DEPLOY_ROOT}/accounts/account_admin \
     | cut -d':' -f2)
   sed -i "s|export PRIVATE_KEY=.*|export PRIVATE_KEY=${private_key}|g" \
     ${DIR}/.envrc
@@ -188,13 +243,13 @@ configure_network() {
   local hash=$(echo "$output" | grep "hash" | awk '{print $2}')
   local timestamp=$(echo "$output" | grep "timestamp" | awk '{print $2}')
   local number=$(echo "$output" | grep "number" | awk '{print $2}')
-  local admin_address=$(cat ${NETWORK_ROOT}/accounts/account_admin \
+  local admin_address=$(cat ${DEPLOY_ROOT}/accounts/account_admin \
     | cut -d':' -f1)
-  local batcher_address=$(cat ${NETWORK_ROOT}/accounts/account_batcher \
+  local batcher_address=$(cat ${DEPLOY_ROOT}/accounts/account_batcher \
     | cut -d':' -f1)
-  local proposer_address=$(cat ${NETWORK_ROOT}/accounts/account_proposer \
+  local proposer_address=$(cat ${DEPLOY_ROOT}/accounts/account_proposer \
     | cut -d':' -f1)
-  local sequencer_address=$(cat ${NETWORK_ROOT}/accounts/account_sequencer \
+  local sequencer_address=$(cat ${DEPLOY_ROOT}/accounts/account_sequencer \
     | cut -d':' -f1)
   sed -i "s/ADMIN/${admin_address}/g; \
     s/BATCHER/${batcher_address}/g; \
@@ -227,7 +282,7 @@ deploy_L1_contracts() {
   fi
   setup_environment
   local l1_node_url=${1}
-  local private_key=$(cat ${NETWORK_ROOT}/accounts/account_admin \
+  local private_key=$(cat ${DEPLOY_ROOT}/accounts/account_admin \
     | cut -d':' -f2)
   cd ${INSTALL_FOLDER}/optimism/packages/contracts-bedrock
   direnv allow . && eval "$(direnv export bash)"
@@ -273,7 +328,7 @@ generate_L2_configuration() {
 }
 
 #######################################
-# Initialize op-geth
+# Initialize nodes
 # Globals:
 #   None
 # Arguments:
@@ -283,23 +338,24 @@ generate_L2_configuration() {
 # Returns:
 #   None
 #######################################
-initialize_op_geth() {
+initialize_nodes() {
   trap 'exit 1' ERR
   if ! utils::check_args_eq 0 $#; then
     trap - ERR
     exit 1
   fi
   setup_environment
-  rm -rf ${INSTALL_FOLDER}/optimism/op-node/jwt.txt \
-    ${INSTALL_FOLDER}/op-geth/genesis.json \
-    ${INSTALL_FOLDER}/op-geth/jwt.txt
-  openssl rand -hex 32 > ${INSTALL_FOLDER}/optimism/op-node/jwt.txt
-  cp ${INSTALL_FOLDER}/optimism/op-node/genesis.json \
-    ${INSTALL_FOLDER}/optimism/op-node/jwt.txt \
-    ${INSTALL_FOLDER}/op-geth/
-  cd ${INSTALL_FOLDER}/op-geth
-  rm -rf datadir
-  mkdir -p datadir
+  # TODO continue
+  # rm -rf ${INSTALL_FOLDER}/optimism/op-node/jwt.txt \
+  #   ${INSTALL_FOLDER}/op-geth/genesis.json \
+  #   ${INSTALL_FOLDER}/op-geth/jwt.txt
+  # openssl rand -hex 32 > ${INSTALL_FOLDER}/optimism/op-node/jwt.txt
+  # cp ${INSTALL_FOLDER}/optimism/op-node/genesis.json \
+  #   ${INSTALL_FOLDER}/optimism/op-node/jwt.txt \
+  #   ${INSTALL_FOLDER}/op-geth/
+  # cd ${INSTALL_FOLDER}/op-geth
+  # rm -rf datadir
+  # mkdir -p datadir
   trap - ERR
 }
 
@@ -337,9 +393,9 @@ case ${action} in
     cmd="generate_L2_configuration ${@}"
     utils::exec_cmd "${cmd}" 'Generate L2 configuration'
     ;;
-  'initialize-op-geth')
-    cmd="initialize_op_geth ${@}"
-    utils::exec_cmd "${cmd}" 'Initialize op-geth'
+  'initialize-nodes')
+    cmd="initialize_nodes ${@}"
+    utils::exec_cmd "${cmd}" 'Initialize nodes'
     ;;
   *)
     utils::err "Unknown action: ${action}"

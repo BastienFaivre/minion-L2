@@ -9,7 +9,6 @@
 
 readonly INSTALL_FOLDER='install'
 readonly DEPLOY_ROOT='deploy/optimism'
-readonly NETWORK_ROOT="$DEPLOY_ROOT/network"
 readonly CHAIN_ID=10
 readonly OP_MONOREPO_URL='https://github.com/ethereum-optimism/optimism.git'
 readonly OP_GETH_URL='https://github.com/ethereum-optimism/op-geth.git'
