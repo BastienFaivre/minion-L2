@@ -36,6 +36,7 @@ usage() {
   echo '  generate-keys <L1 node url> <L1 master account private key>'
   echo '  configure-network <L1 node url>'
   echo '  deploy-L1-contracts <L1 node url>'
+  echo '  generate-L2-configuration <L1 node url>'
 }
 
 #######################################
@@ -65,6 +66,13 @@ setup_environment() {
     trap - ERR
     exit 1
   fi
+  export PATH=/usr/local/go/bin/:$PATH
+  if ! command -v go &> /dev/null
+  then
+    utils::err "Go command not found in PATH"
+    trap - ERR
+    exit 1
+  fi
   trap - ERR
 }
 
@@ -89,6 +97,8 @@ prepare() {
   rm -rf ${DEPLOY_ROOT}
   mkdir -p ${DEPLOY_ROOT}
   mkdir -p ${NETWORK_ROOT}
+  cd ${INSTALL_FOLDER}/optimism
+  git stash
   trap - ERR
 }
 
@@ -164,6 +174,7 @@ configure_network() {
   setup_environment
   local l1_node_url=${1}
   local readonly DIR=${INSTALL_FOLDER}/optimism/packages/contracts-bedrock
+  rm -rf ${DIR}/.envrc
   cp ${DIR}/.envrc.example ${DIR}/.envrc
   sed -i "s|export ETH_RPC_URL=.*|export ETH_RPC_URL=${l1_node_url}|g" \
     ${DIR}/.envrc
@@ -220,11 +231,75 @@ deploy_L1_contracts() {
     | cut -d':' -f2)
   cd ${INSTALL_FOLDER}/optimism/packages/contracts-bedrock
   direnv allow . && eval "$(direnv export bash)"
-  mkdir deployments/getting-started
+  rm -rf deployments/getting-started
+  mkdir -p deployments/getting-started
   forge script scripts/Deploy.s.sol:Deploy --private-key ${private_key} \
     --broadcast --rpc-url ${l1_node_url}
   forge script scripts/Deploy.s.sol:Deploy --sig 'sync()' --private-key \
     ${private_key} --broadcast --rpc-url ${l1_node_url}
+  trap - ERR
+}
+
+#######################################
+# Generate the L2 configuration
+# Globals:
+#   None
+# Arguments:
+#   $1: L1 node url
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+generate_L2_configuration() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_eq 1 $#; then
+    trap - ERR
+    exit 1
+  fi
+  setup_environment
+  local l1_node_url=${1}
+  cd ${INSTALL_FOLDER}/optimism/op-node
+  rm -rf genesis.json rollup.json
+  go run cmd/main.go genesis l2 \
+    --deploy-config \
+    ../packages/contracts-bedrock/deploy-config/getting-started.json \
+    --deployment-dir \
+    ../packages/contracts-bedrock/deployments/getting-started/ \
+    --outfile.l2 genesis.json \
+    --outfile.rollup rollup.json \
+    --l1-rpc ${l1_node_url}
+  trap - ERR
+}
+
+#######################################
+# Initialize op-geth
+# Globals:
+#   None
+# Arguments:
+#   None
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+initialize_op_geth() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_eq 0 $#; then
+    trap - ERR
+    exit 1
+  fi
+  setup_environment
+  rm -rf ${INSTALL_FOLDER}/optimism/op-node/jwt.txt \
+    ${INSTALL_FOLDER}/op-geth/genesis.json \
+    ${INSTALL_FOLDER}/op-geth/jwt.txt
+  openssl rand -hex 32 > ${INSTALL_FOLDER}/optimism/op-node/jwt.txt
+  cp ${INSTALL_FOLDER}/optimism/op-node/genesis.json \
+    ${INSTALL_FOLDER}/optimism/op-node/jwt.txt \
+    ${INSTALL_FOLDER}/op-geth/
+  cd ${INSTALL_FOLDER}/op-geth
+  rm -rf datadir
+  mkdir -p datadir
   trap - ERR
 }
 
@@ -257,6 +332,14 @@ case ${action} in
   'deploy-L1-contracts')
     cmd="deploy_L1_contracts ${@}"
     utils::exec_cmd "${cmd}" 'Deploy L1 contracts'
+    ;;
+  'generate-L2-configuration')
+    cmd="generate_L2_configuration ${@}"
+    utils::exec_cmd "${cmd}" 'Generate L2 configuration'
+    ;;
+  'initialize-op-geth')
+    cmd="initialize_op_geth ${@}"
+    utils::exec_cmd "${cmd}" 'Initialize op-geth'
     ;;
   *)
     utils::err "Unknown action: ${action}"

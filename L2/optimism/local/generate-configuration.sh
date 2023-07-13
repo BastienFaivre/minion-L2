@@ -37,7 +37,7 @@ usage() {
 }
 
 #######################################
-# Retrieve the accounts from the node
+# Retrieve the accounts from the host
 # Globals:
 #   None
 # Arguments:
@@ -60,6 +60,60 @@ retrieve_accounts() {
   mkdir -p ./tmp
   mkdir -p ./tmp/accounts
   scp -P ${port} ${host}:${NETWORK_ROOT}/accounts/* ./tmp/accounts
+  trap - ERR
+}
+
+#######################################
+# Retrieve the configuration from the host
+# Globals:
+#   None
+# Arguments:
+#   $1: remote host
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+retrieve_configuration() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_eq 1 $#; then
+    trap - ERR
+    exit 1
+  fi
+  local remote_host=${1}
+  local host=$(echo ${remote_host} | cut -d':' -f1)
+  local port=$(echo ${remote_host} | cut -d':' -f2)
+  scp -P ${port} ${host}:${INSTALL_FOLDER}/optimism/op-node/genesis.json \
+    ./tmp/genesis.json
+  scp -P ${port} ${host}:${INSTALL_FOLDER}/optimism/op-node/rollup.json \
+    ./tmp/rollup.json
+  trap - ERR
+}
+
+#######################################
+# Send the configuration to the hosts
+# Globals:
+#   None
+# Arguments:
+#   $1: remote hosts list
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+send_configuration() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_ge 1 $#; then
+    trap - ERR
+    exit 1
+  fi
+  local remote_hosts_list=("${@:1}")
+  for remote_host in "${remote_hosts_list[@]}"; do
+    IFS=':' read -r host port <<< "${remote_host}"
+    scp -P ${port} ./tmp/genesis.json ./tmp/rollup.json \
+      ${host}:${INSTALL_FOLDER}/optimism/op-node &
+  done
+  wait
   trap - ERR
 }
 
@@ -109,5 +163,20 @@ cmd='./L2/optimism/remote/generate-configuration.sh deploy-L1-contracts '\
 "${l1_node_url}"
 utils::exec_cmd_on_remote_hosts "${cmd}" 'Deploy L1 contracts' \
   "${first_remote_host}"
+
+cmd='./L2/optimism/remote/generate-configuration.sh generate-L2-configuration '\
+"${l1_node_url}"
+utils::exec_cmd_on_remote_hosts "${cmd}" 'Generate L2 configuration' \
+  "${first_remote_host}"
+
+cmd="retrieve_configuration ${first_remote_host}"
+utils::exec_cmd "${cmd}" 'Retrieve configuration'
+
+cmd="send_configuration ${remote_hosts_list[@]}"
+utils::exec_cmd "${cmd}" 'Send configuration'
+
+cmd='./L2/optimism/remote/generate-configuration.sh initialize-op-geth'
+utils::exec_cmd_on_remote_hosts "${cmd}" 'Initialize op-geth' \
+  "${remote_hosts_list[@]}"
 
 trap - ERR

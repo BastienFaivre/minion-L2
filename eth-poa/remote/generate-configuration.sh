@@ -41,7 +41,7 @@ usage() {
 
 #######################################
 # Check that the necessary commands are available and export them
-# Globals:
+# Globals:number
 #   None
 # Arguments:
 #   None
@@ -73,7 +73,7 @@ setup_environment() {
 # Globals:
 #   None
 # Arguments:
-#   None
+#   $@: nodes names
 # Outputs:
 #   None
 # Returns:
@@ -119,7 +119,7 @@ prepare() {
 # Globals:
 #   None
 # Arguments:
-#   None
+#   $1: number of accounts
 # Outputs:
 #   None
 # Returns:
