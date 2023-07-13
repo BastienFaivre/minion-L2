@@ -114,6 +114,8 @@ prepare() {
 #######################################
 # Generate the genesis file following this guide:
 # https://geth.ethereum.org/docs/fundamentals/private-network
+# TODO modify the configuration to run a post-merge network (Eth 2.0)
+# https://dev.to/q9/how-to-merge-an-ethereum-network-right-from-the-genesis-block-3454
 # Globals:
 #   None
 # Arguments:
@@ -190,6 +192,7 @@ generate() {
     "petersburgBlock": 0,
     "istanbulBlock": 0,
     "berlinBlock": 0,
+    "londonBlock": 0,
     "clique": {
       "period": 5,
       "epoch": 30000
