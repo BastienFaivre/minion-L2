@@ -89,6 +89,63 @@ prepare() {
 }
 
 #######################################
+# Retrieve the static nodes from the hosts
+# Globals:
+#   None
+# Arguments:
+#   $@: remote hosts list
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+retrieve_static_nodes() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_ge 1 $#; then
+    trap - ERR
+    exit 1
+  fi
+  local remote_hosts_list=("${@:1}")
+  rm -rf ./tmp
+  mkdir -p ./tmp
+  mkdir -p ./tmp/static-nodes
+  for remote_host in "${remote_hosts_list[@]}"; do
+    IFS=':' read -r host port <<< "${remote_host}"
+    scp -P ${port} ${host}:${DEPLOY_ROOT}/static-nodes-* ./tmp/static-nodes/ &
+  done
+  wait
+  cat ./tmp/static-nodes/* | tr '\n' ',' > ./tmp/static-nodes.txt
+  sed -i 's/.$//' ./tmp/static-nodes.txt
+  trap - ERR
+}
+
+#######################################
+# Send the static nodes to the hosts
+# Globals:
+#   None
+# Arguments:
+#   $@: remote hosts list
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+send_static_nodes() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_ge 1 $#; then
+    trap - ERR
+    exit 1
+  fi
+  local remote_hosts_list=("${@:1}")
+  for remote_host in "${remote_hosts_list[@]}"; do
+    IFS=':' read -r host port <<< "${remote_host}"
+    scp -P ${port} ./tmp/static-nodes.txt ${host}:${DEPLOY_ROOT} &
+  done
+  wait
+  trap - ERR
+}
+
+#######################################
 # Retrieve the accounts from the host
 # Globals:
 #   None
@@ -108,8 +165,6 @@ retrieve_accounts() {
   local remote_host=${1}
   local host=$(echo ${remote_host} | cut -d':' -f1)
   local port=$(echo ${remote_host} | cut -d':' -f2)
-  rm -rf ./tmp
-  mkdir -p ./tmp
   mkdir -p ./tmp/accounts
   scp -P ${port} ${host}:${DEPLOY_ROOT}/accounts/* ./tmp/accounts
   trap - ERR
@@ -135,6 +190,8 @@ retrieve_configuration() {
   local remote_host=${1}
   local host=$(echo ${remote_host} | cut -d':' -f1)
   local port=$(echo ${remote_host} | cut -d':' -f2)
+  scp -P ${port} ${host}:${INSTALL_FOLDER}/optimism/packages/contracts-bedrock/\
+L2OutputOracleProxy_address ./tmp/L2OutputOracleProxy_address
   scp -P ${port} ${host}:${INSTALL_FOLDER}/optimism/op-node/genesis.json \
     ./tmp/genesis.json
   scp -P ${port} ${host}:${INSTALL_FOLDER}/optimism/op-node/rollup.json \
@@ -147,7 +204,7 @@ retrieve_configuration() {
 # Globals:
 #   None
 # Arguments:
-#   $1: remote hosts list
+#   $@: remote hosts list
 # Outputs:
 #   None
 # Returns:
@@ -163,7 +220,7 @@ send_configuration() {
   for remote_host in "${remote_hosts_list[@]}"; do
     IFS=':' read -r host port <<< "${remote_host}"
     scp -P ${port} ./tmp/genesis.json ./tmp/rollup.json \
-      ${host}:${DEPLOY_ROOT}
+      ./tmp/L2OutputOracleProxy_address ${host}:${DEPLOY_ROOT} &
   done
   wait
   trap - ERR
@@ -194,6 +251,12 @@ trap 'exit 1' ERR
 
 cmd="prepare ${number_of_nodes} ${remote_hosts_list[@]}"
 utils::exec_cmd "${cmd}" 'Prepare the hosts'
+
+cmd="retrieve_static_nodes ${remote_hosts_list[@]}"
+utils::exec_cmd "${cmd}" 'Retrieve static nodes'
+
+cmd="send_static_nodes ${remote_hosts_list[@]}"
+utils::exec_cmd "${cmd}" 'Send static nodes'
 
 first_remote_host=${remote_hosts_list[0]}
 

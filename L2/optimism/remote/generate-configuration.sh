@@ -32,7 +32,7 @@
 usage() {
   echo "Usage: $(basename ${0}) <action> [options...]"
   echo 'Actions:'
-  echo '  prepare'
+  echo '  prepare <nodes names>'
   echo '  generate-keys <L1 node url> <L1 master account private key>'
   echo '  configure-network <L1 node url>'
   echo '  deploy-L1-contracts <L1 node url>'
@@ -128,7 +128,7 @@ setup_environment() {
 #######################################
 prepare() {
   trap 'exit 1' ERR
-  if ! utils::check_args_eq 0 $#; then
+  if ! utils::check_args_ge 1 $#; then
     trap - ERR
     exit 1
   fi
@@ -139,6 +139,7 @@ prepare() {
   local port=7000
   local rpcport=8000
   local wsport=9000
+  local ip=$(hostname -I | awk '{print $1}')
   local dir
   for name in "$@"; do
     dir=${DEPLOY_ROOT}/${name}
@@ -147,6 +148,7 @@ prepare() {
     echo ${port} > ${dir}/port
     echo ${rpcport} > ${dir}/rpcport
     echo ${wsport} > ${dir}/wsport
+    echo http://${ip}:${port} >> ${DEPLOY_ROOT}/static-nodes-${ip}
     authrpcport=$((authrpcport+1))
     port=$((port+1))
     rpcport=$((rpcport+1))
@@ -285,6 +287,7 @@ deploy_L1_contracts() {
   local private_key=$(cat ${DEPLOY_ROOT}/accounts/account_admin \
     | cut -d':' -f2)
   cd ${INSTALL_FOLDER}/optimism/packages/contracts-bedrock
+  rm -rf L2OutputOracleProxy_address
   direnv allow . && eval "$(direnv export bash)"
   rm -rf deployments/getting-started
   mkdir -p deployments/getting-started
@@ -292,6 +295,8 @@ deploy_L1_contracts() {
     --broadcast --rpc-url ${l1_node_url}
   forge script scripts/Deploy.s.sol:Deploy --sig 'sync()' --private-key \
     ${private_key} --broadcast --rpc-url ${l1_node_url}
+  jq -r '.address' deployments/getting-started/L2OutputOracleProxy.json \
+    > L2OutputOracleProxy_address
   trap - ERR
 }
 
@@ -345,17 +350,18 @@ initialize_nodes() {
     exit 1
   fi
   setup_environment
-  # TODO continue
-  # rm -rf ${INSTALL_FOLDER}/optimism/op-node/jwt.txt \
-  #   ${INSTALL_FOLDER}/op-geth/genesis.json \
-  #   ${INSTALL_FOLDER}/op-geth/jwt.txt
-  # openssl rand -hex 32 > ${INSTALL_FOLDER}/optimism/op-node/jwt.txt
-  # cp ${INSTALL_FOLDER}/optimism/op-node/genesis.json \
-  #   ${INSTALL_FOLDER}/optimism/op-node/jwt.txt \
-  #   ${INSTALL_FOLDER}/op-geth/
-  # cd ${INSTALL_FOLDER}/op-geth
-  # rm -rf datadir
-  # mkdir -p datadir
+  local dir
+  for dir in ${DEPLOY_ROOT}/n*; do
+    if [[ ${dir} == *n0 ]]; then
+      echo 'pwd' > ${dir}/password
+      cat ${DEPLOY_ROOT}/accounts/account_sequencer | cut -d':' -f2 \
+        | sed 's/0x//' > ${dir}/block-signer-key
+      geth account import --datadir=${dir} --password=${dir}/password \
+        ${dir}/block-signer-key
+      openssl rand -hex 32 > ${dir}/jwt.txt
+    fi
+    geth init --datadir=${dir} ${DEPLOY_ROOT}/genesis.json
+  done
   trap - ERR
 }
 

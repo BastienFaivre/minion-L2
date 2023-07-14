@@ -42,7 +42,7 @@ usage() {
 #   None
 # Arguments:
 #   $1: number of nodes
-#   $2: remote hosts list
+#   $@: remote hosts list
 # Outputs:
 #   None
 # Returns:
@@ -93,7 +93,7 @@ prepare() {
 # Globals:
 #   None
 # Arguments:
-#   $1: remote hosts list
+#   $@: remote hosts list
 # Outputs:
 #   None
 # Returns:
@@ -172,7 +172,7 @@ retrieve_configuration() {
 # Globals:
 #   None
 # Arguments:
-#   $1: remote hosts list
+#   $@: remote hosts list
 # Outputs:
 #   None
 # Returns:
@@ -198,7 +198,7 @@ send_configuration() {
 # Globals:
 #   None
 # Arguments:
-#   $1: remote hosts list
+#   $@: remote hosts list
 # Outputs:
 #   None
 # Returns:
