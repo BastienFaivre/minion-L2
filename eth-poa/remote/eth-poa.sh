@@ -5,7 +5,6 @@
 #          Systems
 # Date: June 2023
 # Description: Start/stop/kill Ethereum PoA nodes on the host
-# Source: TODO
 #===============================================================================
 
 #===============================================================================
@@ -93,7 +92,7 @@ start() {
     local port=$(cat ${dir}/port)
     local rpcport=$(cat ${dir}/rpcport)
     local wsport=$(cat ${dir}/wsport)
-    if [ -z ${authrpcport} ] [ -z ${port} ] || [ -z ${rpcport} ] || \
+    if [ -z ${authrpcport} ] || [ -z ${port} ] || [ -z ${rpcport} ] || \
       [ -z ${wsport} ]; then
       utils::err "function ${FUNCNAME[0]}(): Could not find authrpcport, port,"\
 " rpcport or wsport for node ${dir}"

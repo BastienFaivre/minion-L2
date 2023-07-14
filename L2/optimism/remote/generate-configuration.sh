@@ -139,6 +139,7 @@ prepare() {
   local port=7000
   local rpcport=8000
   local wsport=9000
+  local p2pport=10000
   local ip=$(hostname -I | awk '{print $1}')
   local dir
   for name in "$@"; do
@@ -148,11 +149,13 @@ prepare() {
     echo ${port} > ${dir}/port
     echo ${rpcport} > ${dir}/rpcport
     echo ${wsport} > ${dir}/wsport
-    echo http://${ip}:${port} >> ${DEPLOY_ROOT}/static-nodes-${ip}
+    echo ${p2pport} > ${dir}/p2pport
+    echo http://${ip}:${p2pport} >> ${DEPLOY_ROOT}/static-nodes-${ip}
     authrpcport=$((authrpcport+1))
     port=$((port+1))
     rpcport=$((rpcport+1))
     wsport=$((wsport+1))
+    p2pport=$((p2pport+1))
   done
   cd ${INSTALL_FOLDER}/optimism
   git stash
@@ -352,15 +355,16 @@ initialize_nodes() {
   setup_environment
   local dir
   for dir in ${DEPLOY_ROOT}/n*; do
+    test -d ${dir} || continue
     if [[ ${dir} == *n0 ]]; then
       echo 'pwd' > ${dir}/password
       cat ${DEPLOY_ROOT}/accounts/account_sequencer | cut -d':' -f2 \
         | sed 's/0x//' > ${dir}/block-signer-key
-      geth account import --datadir=${dir} --password=${dir}/password \
+      geth account import --datadir ${dir} --password ${dir}/password \
         ${dir}/block-signer-key
       openssl rand -hex 32 > ${dir}/jwt.txt
     fi
-    geth init --datadir=${dir} ${DEPLOY_ROOT}/genesis.json
+    geth init --datadir ${dir} ${DEPLOY_ROOT}/genesis.json
   done
   trap - ERR
 }
