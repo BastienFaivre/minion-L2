@@ -118,6 +118,8 @@ retrieve_static_nodes() {
   done
   sed -i 's/.$//' ./tmp/static-nodes.txt
   local first_remote_host=${remote_hosts_list[0]}
+  host=$(echo ${first_remote_host} | cut -d':' -f1)
+  port=$(echo ${first_remote_host} | cut -d':' -f2)
   scp -P ${port} ${host}:${DEPLOY_ROOT}/sequencer-url ./tmp/sequencer-url
   trap - ERR
 }

@@ -378,8 +378,8 @@ initialize_nodes() {
         | sed 's/0x//' > ${dir}/block-signer-key
       geth account import --datadir ${dir} --password ${dir}/password \
         ${dir}/block-signer-key
-      openssl rand -hex 32 > ${dir}/jwt.txt
     fi
+    openssl rand -hex 32 > ${dir}/jwt.txt
     geth init --datadir ${dir} ${DEPLOY_ROOT}/genesis.json
   done
   trap - ERR
