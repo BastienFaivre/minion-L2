@@ -137,25 +137,41 @@ prepare() {
   mkdir -p ${DEPLOY_ROOT}
   local authrpcport=6000
   local port=7000
-  local rpcport=8000
+  local httpport=8000
   local wsport=9000
   local p2pport=10000
+  local rpcport=11000
   local ip=$(hostname -I | awk '{print $1}')
   local dir
+  (
+    cd L2/optimism/remote
+    go mod init p2p-tool
+    go mod tidy
+    go build -o bin/p2p-tool p2p-tool.go
+  )
+  export PATH=${HOME}/L2/optimism/remote/bin:$PATH
   for name in "$@"; do
     dir=${DEPLOY_ROOT}/${name}
     mkdir -p ${dir}
     echo ${authrpcport} > ${dir}/authrpcport
     echo ${port} > ${dir}/port
-    echo ${rpcport} > ${dir}/rpcport
+    echo ${httpport} > ${dir}/httpport
     echo ${wsport} > ${dir}/wsport
     echo ${p2pport} > ${dir}/p2pport
-    echo http://${ip}:${p2pport} >> ${DEPLOY_ROOT}/static-nodes-${ip}
+    echo ${rpcport} > ${dir}/rpcport
+    if [[ ${name} == *n0 ]]; then
+      echo http://${ip}:${httpport} > ${DEPLOY_ROOT}/sequencer-url
+    fi
+    p2p-tool --privKeyPath ${dir}/opnode_p2p_priv.txt --peerIDPath \
+      ${dir}/opnode_peer_id.txt
+    echo /ip4/${ip}/tcp/${p2pport}/p2p/$(cat ${dir}/opnode_peer_id.txt) \
+      >> ${DEPLOY_ROOT}/static-nodes-local.txt
     authrpcport=$((authrpcport+1))
     port=$((port+1))
-    rpcport=$((rpcport+1))
+    httpport=$((httpport+1))
     wsport=$((wsport+1))
     p2pport=$((p2pport+1))
+    rpcport=$((rpcport+1))
   done
   cd ${INSTALL_FOLDER}/optimism
   git stash

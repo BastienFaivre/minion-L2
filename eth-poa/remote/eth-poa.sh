@@ -162,9 +162,12 @@ _kill() {
     test -d ${dir} || continue
     test -d ${dir}/keystore || continue
     test -f ${dir}/pid || continue
-    local pid=$(cat ${dir}/pid)
-    kill ${signal} ${pid}
-    rm ${dir}/pid
+    if ! kill -0 $(cat ${pid}) &> /dev/null; then
+      rm -rf ${pid}
+      continue
+    fi
+    kill ${signal} $(cat ${pid})
+    rm -rf ${pid}
   done
   trap - ERR
 }

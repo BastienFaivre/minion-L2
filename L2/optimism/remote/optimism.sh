@@ -127,20 +127,30 @@ start() {
   fi
   local l1_node_url=${1}
   local dir
+  local ip=$(hostname -I | awk '{print $1}')
   for dir in ${DEPLOY_ROOT}/n*; do
     test -d ${dir} || continue
     local authrpcport=$(cat ${dir}/authrpcport)
     local port=$(cat ${dir}/port)
-    local rpcport=$(cat ${dir}/rpcport)
+    local httpport=$(cat ${dir}/httpport)
     local wsport=$(cat ${dir}/wsport)
     local p2pport=$(cat ${dir}/p2pport)
-    if [ -z ${authrpcport} ] || [ -z ${port} ] || [ -z ${rpcport} ] || \
-      [ -z ${wsport} ] || [ -z ${p2pport} ]; then
+    local rpcport=$(cat ${dir}/rpcport)
+    if [ -z ${authrpcport} ] || [ -z ${port} ] || [ -z ${httpport} ] || \
+      [ -z ${wsport} ] || [ -z ${p2pport} ] || [ -z ${rpcport} ]; then
     utils::err "function ${FUNCNAME[0]}(): Could not find authrpcport, port,"\
-" rpcport, wsport or p2pport for node ${dir}"
+" httpport, wsport ,p2pport or rpcport for node ${dir}"
       trap - ERR
       exit 1
     fi
+    local peerid=$(cat ${dir}/opnode_peer_id.txt)
+    local static_nodes=$(cat "${DEPLOY_ROOT}/static-nodes.txt" | \
+      sed -e "s,/ip4/${ip}/tcp/${p2pport}/p2p/${peerid}.*$,," \
+        -e "s/^,//" \
+        -e "s/,$//")
+    echo ${static_nodes} > ${dir}/static-nodes.txt
+    mkdir -p ${dir}/opnode_discovery_db
+    mkdir -p ${dir}/opnode_peerstore_db
     if [[ ${dir} == *n0 ]]; then
       local sequencer_address=$(cat ${DEPLOY_ROOT}/accounts/account_sequencer \
         | cut -d':' -f1 | sed 's/0x//')
@@ -150,7 +160,7 @@ start() {
         | cut -d':' -f2 | sed 's/0x//')
       local proposer_key=$(cat ${DEPLOY_ROOT}/accounts/account_proposer \
         | cut -d':' -f2 | sed 's/0x//')
-      echo $l1_node_url > ${dir}/l1_node_url
+      echo ${l1_node_url} > ${dir}/l1_node_url
       geth \
         --datadir ${dir} \
         --allow-insecure-unlock \
@@ -159,6 +169,8 @@ start() {
         --gcmode archive \
         --verbosity 2 \
         --networkid 42069 \
+        --port ${port} \
+        --discovery.port ${port} \
         --authrpc.addr 0.0.0.0 \
         --authrpc.port ${authrpcport} \
         --authrpc.jwtsecret ${dir}/jwt.txt \
@@ -169,7 +181,7 @@ start() {
         --ws.origins '*' \
         --http \
         --http.addr 0.0.0.0 \
-        --http.port ${rpcport} \
+        --http.port ${httpport} \
         --http.corsdomain '*' \
         --http.api admin,eth,debug,net,txpool,web3,engine \
         --rollup.disabletxpoolgossip=true \
@@ -182,10 +194,6 @@ start() {
         > ${dir}/geth.log 2> ${dir}/geth.err &
       echo $! > ${dir}/pid-geth
       sleep 1
-      # --p2p.static /ip4/192.168.201.2/tcp/10000 \
-      # --p2p.listen.ip 0.0.0.0 \
-      # --p2p.listen.tcp ${p2pport} \
-      # --p2p.listen.udp ${p2pport} \
       op-node \
         --l2 http://localhost:${authrpcport} \
         --l2.jwt-secret ${dir}/jwt.txt \
@@ -195,16 +203,22 @@ start() {
         --verifier.l1-confs 3 \
         --rollup.config ${DEPLOY_ROOT}/rollup.json \
         --rpc.addr 0.0.0.0 \
-        --rpc.port ${port} \
+        --rpc.port ${rpcport} \
         --rpc.enable-admin \
-        --p2p.disable \
         --p2p.sequencer.key ${sequencer_key} \
+        --p2p.static "${static_nodes}" \
+        --p2p.listen.ip 0.0.0.0 \
+        --p2p.listen.tcp ${p2pport} \
+        --p2p.listen.udp ${p2pport} \
+        --p2p.discovery.path ${dir}/opnode_discovery_db \
+        --p2p.peerstore.path ${dir}/opnode_peerstore_db \
+        --p2p.priv.path ${dir}/opnode_p2p_priv.txt \
         > ${dir}/op-node.log 2> ${dir}/op-node.err &
       echo $! > ${dir}/pid-op-node
       sleep 1
       op-batcher \
-        --l2-eth-rpc http://localhost:${rpcport} \
-        --rollup-rpc http://localhost:${port} \
+        --l2-eth-rpc http://localhost:${httpport} \
+        --rollup-rpc http://localhost:${rpcport} \
         --poll-interval 1s \
         --sub-safety-margin 6 \
         --num-confirmations 1 \
@@ -222,7 +236,7 @@ start() {
       op-proposer \
         --poll-interval 12s \
         --rpc.port 12000 \
-        --rollup-rpc http://localhost:${port} \
+        --rollup-rpc http://localhost:${rpcport} \
         --l2oo-address $(cat ${DEPLOY_ROOT}/L2OutputOracleProxy_address) \
         --private-key ${proposer_key} \
         --l1-eth-rpc ${l1_node_url} \
@@ -232,11 +246,12 @@ start() {
     else
       geth \
         --datadir ${dir} \
-        --allow-insecure-unlock \
         --nodiscover \
         --syncmode full \
         --verbosity 2 \
         --networkid 42069 \
+        --port ${port} \
+        --discovery.port ${port} \
         --authrpc.addr 0.0.0.0 \
         --authrpc.port ${authrpcport} \
         --authrpc.jwtsecret ${dir}/jwt.txt \
@@ -247,25 +262,29 @@ start() {
         --ws.origins '*' \
         --http \
         --http.addr 0.0.0.0 \
-        --http.port ${rpcport} \
+        --http.port ${httpport} \
         --http.corsdomain '*' \
         --http.api admin,eth,debug,net,txpool,web3,engine \
         --rollup.disabletxpoolgossip=true \
-        --rollup.sequencerhttp <TODO> \
+        --rollup.sequencerhttp $(cat ${DEPLOY_ROOT}/sequencer-url) \
         --maxpeers 0 \
         > ${dir}/geth.log 2> ${dir}/geth.err &
       echo $! > ${dir}/pid-geth
       sleep 1
       op-node \
-        --l2=http://localhost:${authrpcport} \
+        --l2 http://localhost:${authrpcport} \
         --l2.jwt-secret ${dir}/jwt.txt \
+        --l1 ${l1_node_url} \
+        --rollup.config ${DEPLOY_ROOT}/rollup.json \
         --rpc.addr 0.0.0.0 \
-        --rpc.port ${port} \
-        --p2p.static $(cat ${dir}/static-node.txt) \
+        --rpc.port ${rpcport} \
+        --p2p.static "${static_nodes}" \
         --p2p.listen.ip 0.0.0.0 \
         --p2p.listen.tcp ${p2pport} \
         --p2p.listen.udp ${p2pport} \
-        --l1 ${l1_node_url} \
+        --p2p.discovery.path ${dir}/opnode_discovery_db \
+        --p2p.peerstore.path ${dir}/opnode_peerstore_db \
+        --p2p.priv.path ${dir}/opnode_p2p_priv.txt \
         > ${dir}/op-node.log 2> ${dir}/op-node.err &
       echo $! > ${dir}/pid-op-node
     fi
@@ -298,6 +317,10 @@ _kill() {
     test -d ${dir}/keystore || continue
     for pid in ${dir}/pid-*; do
       test -f ${pid} || continue
+      if ! kill -0 $(cat ${pid}) &> /dev/null; then
+        rm -rf ${pid}
+        continue
+      fi
       kill ${signal} $(cat ${pid})
       rm -rf ${pid}
     done

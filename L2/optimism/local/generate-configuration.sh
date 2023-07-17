@@ -111,11 +111,14 @@ retrieve_static_nodes() {
   mkdir -p ./tmp/static-nodes
   for remote_host in "${remote_hosts_list[@]}"; do
     IFS=':' read -r host port <<< "${remote_host}"
-    scp -P ${port} ${host}:${DEPLOY_ROOT}/static-nodes-* ./tmp/static-nodes/ &
+    scp -P ${port} ${host}:${DEPLOY_ROOT}/static-nodes-local.txt \
+      ./tmp/static-nodes/static-nodes-${host}.txt
+    cat ./tmp/static-nodes/static-nodes-${host}.txt | tr '\n' ',' \
+      >> ./tmp/static-nodes.txt
   done
-  wait
-  cat ./tmp/static-nodes/* | tr '\n' ',' > ./tmp/static-nodes.txt
   sed -i 's/.$//' ./tmp/static-nodes.txt
+  local first_remote_host=${remote_hosts_list[0]}
+  scp -P ${port} ${host}:${DEPLOY_ROOT}/sequencer-url ./tmp/sequencer-url
   trap - ERR
 }
 
@@ -139,7 +142,8 @@ send_static_nodes() {
   local remote_hosts_list=("${@:1}")
   for remote_host in "${remote_hosts_list[@]}"; do
     IFS=':' read -r host port <<< "${remote_host}"
-    scp -P ${port} ./tmp/static-nodes.txt ${host}:${DEPLOY_ROOT} &
+    scp -P ${port} ./tmp/static-nodes.txt ./tmp/sequencer-url \
+      ${host}:${DEPLOY_ROOT} &
   done
   wait
   trap - ERR

@@ -35,6 +35,36 @@ usage() {
   echo 'Usage: $(basename ${0}) <remote hosts file> start|stop|kill [options]'
 }
 
+#######################################
+# Execute the command with a delay for each host
+# This is to avoid problems with static nodes
+# Globals:
+#   None
+# Arguments:
+#   $1: command
+#   $@: remote hosts list
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+execute_with_delay() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_ge 2 $#; then
+    trap - ERR
+    exit 1
+  fi
+  local cmd=$(echo "${1}" | tr '|' ' ')
+  local remote_hosts_list=("${@:2}")
+  for remote_host in "${remote_hosts_list[@]}"; do
+    IFS=':' read -r host port <<< "${remote_host}"
+    ssh -p ${port} ${host} "${cmd}" &
+    sleep 1
+  done
+  wait
+  trap - ERR
+}
+
 #===============================================================================
 # MAIN
 #===============================================================================
@@ -63,8 +93,8 @@ shift 2
 
 trap 'exit 1' ERR
 
-cmd="./L2/optimism/remote/optimism.sh ${action} ${@}"
-utils::exec_cmd_on_remote_hosts "${cmd}" "${action} Optimism on remote hosts" \
-"${remote_hosts_list[@]}"
+host_cmd="./L2/optimism/remote/optimism.sh|${action}|${@}"
+cmd="execute_with_delay ${host_cmd} ${remote_hosts_list[@]}"
+utils::exec_cmd "${cmd}" "${action} Optimism on remote hosts"
 
 trap - ERR
