@@ -112,8 +112,8 @@ retrieve_static_nodes() {
   for remote_host in "${remote_hosts_list[@]}"; do
     IFS=':' read -r host port <<< "${remote_host}"
     scp -P ${port} ${host}:${DEPLOY_ROOT}/static-nodes-local.txt \
-      ./tmp/static-nodes/static-nodes-${host}.txt
-    cat ./tmp/static-nodes/static-nodes-${host}.txt | tr '\n' ',' \
+      ./tmp/static-nodes/static-nodes-${host}-${port}.txt
+    cat ./tmp/static-nodes/static-nodes-${host}-${port}.txt | tr '\n' ',' \
       >> ./tmp/static-nodes.txt
   done
   sed -i 's/.$//' ./tmp/static-nodes.txt
