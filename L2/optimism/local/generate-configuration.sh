@@ -198,6 +198,8 @@ retrieve_configuration() {
   local port=$(echo ${remote_host} | cut -d':' -f2)
   scp -P ${port} ${host}:${INSTALL_FOLDER}/optimism/packages/contracts-bedrock/\
 L2OutputOracleProxy_address ./tmp/L2OutputOracleProxy_address
+  scp -P ${port} ${host}:${INSTALL_FOLDER}/optimism/packages/contracts-bedrock/\
+L1StandardBridgeProxy_address ./tmp/L1StandardBridgeProxy_address
   scp -P ${port} ${host}:${INSTALL_FOLDER}/optimism/op-node/genesis.json \
     ./tmp/genesis.json
   scp -P ${port} ${host}:${INSTALL_FOLDER}/optimism/op-node/rollup.json \

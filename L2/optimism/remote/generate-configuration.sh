@@ -306,7 +306,7 @@ deploy_L1_contracts() {
   local private_key=$(cat ${DEPLOY_ROOT}/accounts/account_admin \
     | cut -d':' -f2)
   cd ${INSTALL_FOLDER}/optimism/packages/contracts-bedrock
-  rm -rf L2OutputOracleProxy_address
+  rm -rf L2OutputOracleProxy_address L1StandardBridgeProxy_address
   direnv allow . && eval "$(direnv export bash)"
   rm -rf deployments/getting-started
   mkdir -p deployments/getting-started
@@ -314,8 +314,10 @@ deploy_L1_contracts() {
     --broadcast --rpc-url ${l1_node_url}
   forge script scripts/Deploy.s.sol:Deploy --sig 'sync()' --private-key \
     ${private_key} --broadcast --rpc-url ${l1_node_url}
-  jq -r '.address' deployments/getting-started/L2OutputOracleProxy.json \
+  jq -r .address deployments/getting-started/L2OutputOracleProxy.json \
     > L2OutputOracleProxy_address
+  jq -r .address deployments/getting-started/L1StandardBridgeProxy.json \
+    > L1StandardBridgeProxy_address
   trap - ERR
 }
 

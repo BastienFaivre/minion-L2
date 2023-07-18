@@ -16,5 +16,5 @@ readonly GO_URL='https://go.dev/dl/go1.20.5.linux-amd64.tar.gz'
 readonly GO_PATH='/usr/local/go/bin'
 readonly GETH_URL='https://github.com/ethereum/go-ethereum'
 readonly GETH_BRANCH='master'
-readonly ACCOUNT_BALANCE=1000000000000000000000000 # 1 ether
-readonly MASTER_BALANCE=1000000000000000000000000000 # 1000 ether
+readonly ACCOUNT_BALANCE=10000000000000000000 # 10 ether
+readonly MASTER_BALANCE=1000000000000000000000 # 1000 ether

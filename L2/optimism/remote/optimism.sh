@@ -225,7 +225,7 @@ start() {
         --safe-abort-nonce-too-low-count 3 \
         --resubmission-timeout 30s \
         --rpc.addr 0.0.0.0 \
-        --rpc.port 11000 \
+        --rpc.port 12000 \
         --rpc.enable-admin \
         --max-channel-duration 1 \
         --l1-eth-rpc ${l1_node_url} \
@@ -235,7 +235,7 @@ start() {
       sleep 1
       op-proposer \
         --poll-interval 12s \
-        --rpc.port 12000 \
+        --rpc.port 13000 \
         --rollup-rpc http://localhost:${rpcport} \
         --l2oo-address $(cat ${DEPLOY_ROOT}/L2OutputOracleProxy_address) \
         --private-key ${proposer_key} \
