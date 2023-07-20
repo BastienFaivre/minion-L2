@@ -36,7 +36,7 @@ usage() {
   echo '  -h, --help          display this message and exit'
   echo '  -f, --hosts-file    remote hosts file'
   echo '    File format: one host per line, with the following format:'
-  echo '      <host>:<port>'
+  echo '      <user>@<ip>:<port>'
   echo '    Example:'
   echo '      root@example.com:1234'
   echo '    Please ALWAYS SPECIFY THE PORT, even if it is the default SSH port'

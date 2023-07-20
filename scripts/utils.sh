@@ -303,6 +303,26 @@ utils::create_remote_hosts_list() {
 }
 
 #######################################
+# Extract the ip address from a remote host
+# Globals:
+#   None
+# Arguments:
+#   $1: remote host
+# Outputs:
+#   None
+# Returns:
+#   The ip address
+#######################################
+utils::extract_ip_address() {
+  if ! utils::check_args_eq 1 $#; then
+    exit 1
+  fi
+  local remote_host="${1}" # format: host:port, where host is <user>@<ip>
+  local ip_address=$(echo "${remote_host}" | cut -d '@' -f 2 | cut -d ':' -f 1)
+  echo "${ip_address}"
+}
+
+#######################################
 # Execute a command on all remote hosts in parallel while displaying a loader
 # Globals:
 #   None
