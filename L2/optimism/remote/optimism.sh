@@ -240,7 +240,6 @@ start() {
         --l2oo-address $(cat ${DEPLOY_ROOT}/L2OutputOracleProxy_address) \
         --private-key ${proposer_key} \
         --l1-eth-rpc ${l1_node_url} \
-        --allow-non-finalized \
         > ${dir}/op-proposer.log 2> ${dir}/op-proposer.err &
       echo $! > ${dir}/pid-op-proposer
     else

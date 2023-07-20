@@ -3,8 +3,8 @@
 # Author: Bastien Faivre
 # Project: EPFL, DCL, Performance and Security Evaluation of Layer 2 Blockchain
 #          Systems
-# Date: June 2023
-# Description: Export the setup to the remote hosts
+# Date: July 2023
+# Description: Generate configuration and prepare the hosts
 #===============================================================================
 
 #===============================================================================
@@ -13,7 +13,8 @@
 
 caller_dir=$(pwd)
 cd "$(dirname "${0}")"
-. ../utils.sh
+. ../constants.sh
+. ../../scripts/utils.sh
 
 #===============================================================================
 # FUNCTIONS
@@ -31,55 +32,26 @@ cd "$(dirname "${0}")"
 #   None
 #######################################
 usage() {
-  echo "Usage: $(basename ${0}) <remote hosts file>"
+  echo 'Usage: $(basename ${0}) <remote hosts file> <number of accounts>'
 }
 
 #######################################
-# Export the setup to the remote hosts
+# TODO
 # Globals:
 #   None
 # Arguments:
-#   $1: remote hosts list
+#   None
 # Outputs:
 #   None
 # Returns:
 #   None
 #######################################
-export_scripts() {
-  trap 'exit 1' ERR
-  if ! utils::check_args_ge 1 $#; then
-    trap - ERR
-    exit 1
-  fi
-  local remote_hosts_list=("${@:1}")
-  cd ../..
-  for remote_host in "${remote_hosts_list[@]}"; do
-    IFS=':' read -r host port <<< "${remote_host}"
-    (
-      rsync -rav -e "ssh -p ${port}" \
-      eth-pos/ \
-      --exclude 'local/' \
-      ${host}:~/eth-pos
-      rsync -rav -e "ssh -p ${port}" \
-      L2/ \
-      --exclude '*/local/' \
-      ${host}:~/L2
-      ssh -p ${port} ${host} 'mkdir -p ~/scripts'
-      rsync -rav -e "ssh -p ${port}" \
-      scripts/ \
-      --exclude 'local/' \
-      ${host}:~/scripts
-    ) &
-  done
-  wait
-  trap - ERR
-}
 
 #===============================================================================
 # MAIN
 #===============================================================================
 
-if ! utils::check_args_eq 1 $#; then
+if ! utils::check_args_eq 2 $#; then
   usage
   exit 1
 fi
@@ -92,10 +64,4 @@ fi
 remote_hosts_file="$(cd "$(dirname "${remote_hosts_file}")"; pwd)/\
 $(basename "${remote_hosts_file}")"
 remote_hosts_list=($(utils::create_remote_hosts_list ${remote_hosts_file}))
-
-trap 'exit 1' ERR
-
-cmd="export_scripts ${remote_hosts_list[@]}"
-utils::exec_cmd "${cmd}" 'Export the setup to the remote hosts'
-
-trap - ERR
+number_of_accounts=${2}

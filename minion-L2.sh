@@ -4,7 +4,7 @@
 # Project: EPFL, DCL, Performance and Security Evaluation of Layer 2 Blockchain
 #          Systems
 # Date: June 2023
-# Description: Deploy an L2 system on an Ethereum PoA network
+# Description: Deploy a L2 system over an Ethereum Proof of Stake network
 #===============================================================================
 
 #===============================================================================
@@ -46,11 +46,11 @@ usage() {
   echo '    Format: <step>[,<step>]...'
   echo '    Steps:'
   echo '      1: export scripts to remote hosts'
-  echo '      2: install Ethereum PoA on remote hosts (this may take few '\
-'minutes)'
-  echo '      3: generate the configuration for the Ethereum PoA network'
-  echo '      4: start Ethereum PoA network'
-  echo '  -k, --kill          kill the Ethereum PoA network'
+  echo '      2: install and build Ethereum PoS on remote hosts (this may take\'
+' few minutes)'
+  echo '      3: generate the configuration for the Ethereum PoS network'
+  echo '      4: start Ethereum PoS network'
+  echo '  -k, --kill          kill the Ethereum PoS network'
   echo '  -c, --clean         clean the remote hosts'
 }
 
@@ -81,8 +81,8 @@ welcome() {
   else
     echo 'Welcome to Minion-L2!'
   fi
-  echo 'Minion-L2 is a tool to deploy a private Layer 2 system on an Ethereum '\
-'PoA network.'
+  echo 'Minion-L2 is a tool to deploy a Layer 2 system over an Ethereum Proof '\
+'of Stake network.'
   echo ''
 }
 
@@ -150,8 +150,8 @@ if ! utils::check_required_arg 'Remote hosts file' "${remote_hosts_file}"; then
 fi
 
 if [[ "${kill}" == true ]]; then
-  cmd="./eth-poa/local/eth-poa.sh ${remote_hosts_file} kill"
-  utils::exec_cmd "${cmd}" 'Kill Ethereum PoA network'
+  cmd="./eth-pos/local/eth-pos.sh ${remote_hosts_file} kill"
+  utils::exec_cmd "${cmd}" 'Kill Ethereum PoS network'
   echo ''
   echo 'Task completed successfully!'
   exit 0
@@ -183,28 +183,28 @@ else
 fi
 
 if [[ "${steps}" == '' ]] || [[ "${steps}" == *'2'* ]]; then
-  cmd="./eth-poa/local/install-eth-poa.sh ${remote_hosts_file}"
-  utils::exec_cmd "${cmd}" 'Install Ethereum PoA on remote hosts (this may '\
+  cmd="./eth-pos/local/install-eth-pos.sh ${remote_hosts_file}"
+  utils::exec_cmd "${cmd}" 'Install Ethereum PoS on remote hosts (this may '\
 'take few minutes)'
 else
-  utils::skip_cmd 'Install Ethereum PoA on remote hosts (this may take few '\
+  utils::skip_cmd 'Install Ethereum PoS on remote hosts (this may take few '\
 'minutes)'
 fi
 
 if [[ "${steps}" == '' ]] || [[ "${steps}" == *'3'* ]]; then
-  cmd="./eth-poa/local/generate-configuration.sh ${remote_hosts_file} "\
+  cmd="./eth-pos/local/generate-configuration.sh ${remote_hosts_file} "\
 "${num_nodes} ${num_accounts}"
-  utils::exec_cmd "${cmd}" 'Generate the configuration for the Ethereum PoA '\
+  utils::exec_cmd "${cmd}" 'Generate the configuration for the Ethereum PoS '\
 'network'
 else
-  utils::skip_cmd 'Generate the configuration for the Ethereum PoA network'
+  utils::skip_cmd 'Generate the configuration for the Ethereum PoS network'
 fi
 
 if [[ "${steps}" == '' ]] || [[ "${steps}" == *'4'* ]]; then
-  cmd="./eth-poa/local/eth-poa.sh ${remote_hosts_file} start"
-  utils::exec_cmd "${cmd}" 'Start Ethereum PoA network'
+  cmd="./eth-pos/local/eth-pos.sh ${remote_hosts_file} start"
+  utils::exec_cmd "${cmd}" 'Start Ethereum PoS network'
 else
-  utils::skip_cmd 'Start Ethereum PoA network'
+  utils::skip_cmd 'Start Ethereum PoS network'
 fi
 
 echo ''
