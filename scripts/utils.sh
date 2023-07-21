@@ -257,7 +257,10 @@ utils::exec_cmd() {
   trap 'kill ${pid} 2 > /dev/null 2>&1' EXIT
   while kill -0 ${pid} 2> /dev/null; do
     local c=${sp:i++%${#sp}:1}
-    echo -ne "\r${c}${c}${c}${c} ${cmd_explanation}"
+    local c1=${sp:$((i + 1))%${#sp}:1}
+    local c2=${sp:$((i + 2))%${#sp}:1}
+    local c3=${sp:$((i + 3))%${#sp}:1}
+    echo -ne "\r${c}${c1}${c2}${c3} ${cmd_explanation}"
     sleep 0.1
   done
   wait ${pid}

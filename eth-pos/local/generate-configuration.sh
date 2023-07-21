@@ -36,16 +36,71 @@ usage() {
 }
 
 #######################################
-# TODO
+# Retrieve the configuration from the remote host
 # Globals:
 #   None
 # Arguments:
-#   None
+#   $1: remote host
 # Outputs:
 #   None
 # Returns:
 #   None
 #######################################
+retrieve_configuration() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_eq 1 $#; then
+    trap - ERR
+    exit 1
+  fi
+  local remote_host=${1} # <user>@<ip>:<port>
+  local host=$(echo "${remote_host}" | cut -d: -f1) # <user>@<ip>
+  local port=$(echo "${remote_host}" | cut -d: -f2) # <port>
+  rm -rf ./tmp
+  mkdir -p ./tmp
+  mkdir -p ./tmp/config
+  scp -P ${port} ${host}:${DEPLOY_ROOT}/config.tar.gz  ./tmp/config.tar.gz
+  ssh -p ${port} ${host} "rm -rf ${DEPLOY_ROOT}/config.tar.gz"
+  tar -xzf ./tmp/config.tar.gz -C ./tmp/config
+  trap - ERR
+}
+
+#######################################
+# Send the configuration to the remote hosts
+# Globals:
+#   None
+# Arguments:
+#   $@: remote hosts list
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+send_configuration() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_ge 1 $#; then
+    trap - ERR
+    exit 1
+  fi
+  local remote_hosts_list=("${@}")
+  local i=0
+  for remote_host in "${remote_hosts_list[@]}"; do
+    (
+      IFS=':' read -r host port <<< "${remote_host}"
+      ssh -p ${port} ${host} "rm -rf ${DEPLOY_ROOT}; mkdir -p ${DEPLOY_ROOT}"
+      mkdir -p ./tmp/config-n${i}
+      cp ./tmp/config/config.toml ./tmp/config-n${i}/config.toml
+      cp ./tmp/config/genesis.json ./tmp/config-n${i}/genesis.json
+      cp -r ./tmp/config/n${i} ./tmp/config-n${i}/n${i}
+      tar -czf ./tmp/config-n${i}.tar.gz -C ./tmp/config-n${i} .
+      scp -P ${port} ./tmp/config-n${i}.tar.gz \
+        ${host}:${DEPLOY_ROOT}/config.tar.gz
+      rm -rf ./tmp/config-n${i} ./tmp/config-n${i}.tar.gz
+    ) &
+    i=$((i + 1))
+  done
+  wait
+  trap - ERR
+}
 
 #===============================================================================
 # MAIN
@@ -83,5 +138,15 @@ cmd="./eth-pos/remote/generate-configuration.sh generate ${number_of_accounts}"\
 " ${remote_hosts_ip_list[@]}"
 utils::exec_cmd_on_remote_hosts "${cmd}" 'Generate the configuration' \
   "${first_remote_host}"
+
+cmd="retrieve_configuration ${first_remote_host}"
+utils::exec_cmd "${cmd}" 'Retrieve the configuration'
+
+cmd="send_configuration ${remote_hosts_list[@]}"
+utils::exec_cmd "${cmd}" 'Send the configuration'
+
+cmd="./eth-pos/remote/generate-configuration.sh setup"
+utils::exec_cmd_on_remote_hosts "${cmd}" 'Setup the hosts' \
+  "${remote_hosts_list[@]}"
 
 trap - ERR

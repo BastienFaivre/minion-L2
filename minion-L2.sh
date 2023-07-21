@@ -3,7 +3,7 @@
 # Author: Bastien Faivre
 # Project: EPFL, DCL, Performance and Security Evaluation of Layer 2 Blockchain
 #          Systems
-# Date: June 2023
+# Date: July 2023
 # Description: Deploy a L2 system over an Ethereum Proof of Stake network
 #===============================================================================
 
@@ -40,7 +40,6 @@ usage() {
   echo '    Example:'
   echo '      root@example.com:1234'
   echo '    Please ALWAYS SPECIFY THE PORT, even if it is the default SSH port'
-  echo '  -n, --num-nodes     number of nodes (required for step 3)'
   echo '  -a, --num-accounts  number of accounts (required for step 3)'
   echo '  -s, --steps         steps to do (default: all)'
   echo '    Format: <step>[,<step>]...'
@@ -93,7 +92,6 @@ welcome() {
 welcome
 
 remote_hosts_file=''
-num_nodes=''
 steps=''
 kill=false
 clean=false
@@ -106,10 +104,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     -f|--hosts-file)
       remote_hosts_file=${2}
-      shift 2
-      ;;
-    -n|--num-nodes)
-      num_nodes=${2}
       shift 2
       ;;
     -a|--num-accounts)
@@ -136,9 +130,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "${remote_hosts_file}" ]] && [[ -z "${num_nodes}" ]] && \
-  [[ -z "${num_accounts}" ]] && [[ "${steps}" == '' ]] && \
-  [[ "${kill}" == false ]] && [[ "${clean}" == false ]]; then
+if [[ -z "${remote_hosts_file}" ]] && [[ -z "${num_accounts}" ]] && \
+  [[ "${steps}" == '' ]] && [[ "${kill}" == false ]] && \
+  [[ "${clean}" == false ]]; then
   usage
   exit 0
 fi
@@ -165,9 +159,8 @@ if [[ "${clean}" == true ]]; then
   exit 0
 fi
 
-if [[ "${steps}" == *'3'* ]] && ! utils::check_required_arg 'Number of nodes' \
-  "${num_nodes}" && ! utils::check_required_arg 'Number of accounts' \
-  "${num_accounts}"; then
+if [[ "${steps}" == *'3'* ]] && \
+  ! utils::check_required_arg 'Number of accounts' "${num_accounts}"; then
   echo ''
   usage
   exit 1
@@ -193,7 +186,7 @@ fi
 
 if [[ "${steps}" == '' ]] || [[ "${steps}" == *'3'* ]]; then
   cmd="./eth-pos/local/generate-configuration.sh ${remote_hosts_file} "\
-"${num_nodes} ${num_accounts}"
+"${num_accounts}"
   utils::exec_cmd "${cmd}" 'Generate the configuration for the Ethereum PoS '\
 'network'
 else
