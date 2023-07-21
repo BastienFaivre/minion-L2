@@ -129,6 +129,7 @@ generate() {
   genesis=$(cat eth-pos/remote/genesis.json)
   jq --argjson alloc "${alloc}" '.alloc += $alloc' <<< ${genesis} \
     > ${CONFIG_ROOT}/genesis.json
+  jq ".config.chainId = ${CHAIN_ID}" -i ${CONFIG_ROOT}/genesis.json
   cp eth-pos/remote/config.toml ${CONFIG_ROOT}/config.toml
   echo 'StaticNodes = [' >> ${CONFIG_ROOT}/config.toml
   local dir
