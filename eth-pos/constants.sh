@@ -26,3 +26,14 @@ readonly GETH_PORT=30303
 readonly GETH_DISCOVERY_PORT=30303
 readonly GETH_HTTP_PORT=8545
 readonly GETH_WS_PORT=8546
+# TODO make validator count an argument
+readonly VALIDATOR_COUNT=8
+readonly GENESIS_DELAY=180
+readonly GENESIS_FORK_VERSION=0x00002023
+readonly ALTAIR_FORK_EPOCH=0
+readonly BELLATRIX_FORK_EPOCH=0
+readonly CAPELLA_FORK_EPOCH=1
+readonly TTD=0
+readonly SECONDS_PER_SLOT=3
+readonly SECONDS_PER_ETH1_BLOCK=6
+readonly MNENOMIC_PHRASE='skirt leg mobile alert chuckle labor grid twenty concert twenty vibrant urge'

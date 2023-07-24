@@ -74,7 +74,13 @@ setup_environment() {
   export PATH=${PATH}:${HOME}/.cargo/bin/
   if ! command -v lighthouse &> /dev/null
   then
-    utils::err "Lighthouse command not found in ${INSTALL_ROOT}/lighthouse"
+    utils::err "Lighthouse command not found in ${HOME}/.cargo/bin/"
+    trap - ERR
+    exit 1
+  fi
+  if ! command -v lcli &> /dev/null
+  then
+    utils::err "Lcli command not found in ${HOME}/.cargo/bin/"
     trap - ERR
     exit 1
   fi
@@ -88,6 +94,18 @@ setup_environment() {
   trap - ERR
 }
 
+#######################################
+# Generate the configuration for execution and consensus layers
+# Globals:
+#   None
+# Arguments:
+#   $1: number of accounts
+#   $@: nodes ip addresses
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
 generate() {
   trap 'exit 1' ERR
   if ! utils::check_args_ge 2 $#; then
@@ -100,9 +118,9 @@ generate() {
   rm -rf ${DEPLOY_ROOT}
   mkdir -p ${DEPLOY_ROOT}
   mkdir -p ${CONFIG_ROOT}
-  mkdir -p ${CONFIG_ROOT}/accounts
-  mkdir -p ${CONFIG_ROOT}/accounts/keystore
-  mkdir -p ${CONFIG_ROOT}/tmp
+  mkdir -p ${CONFIG_ROOT}/execution/accounts
+  mkdir -p ${CONFIG_ROOT}/execution/accounts/keystore
+  mkdir -p ${CONFIG_ROOT}/execution/tmp
   # Generate accounts
   local alloc='{'
   for i in $(seq 0 ${num_accounts}); do
@@ -113,10 +131,12 @@ generate() {
     address=${keypath##*--}
     private=$(./eth-pos/remote/extract.py ${keypath} ${i})
     if [ ${i} -eq 0 ]; then
-      echo ${address}:${private} > ${CONFIG_ROOT}/accounts/account_master
+      echo ${address}:${private} \
+        > ${CONFIG_ROOT}/execution/accounts/account_master
       alloc+='"'${address}'": {"balance": "'${MASTER_BALANCE}'"}'
     else
-      echo ${address}:${private} > ${CONFIG_ROOT}/accounts/account_${i}
+      echo ${address}:${private} \
+        > ${CONFIG_ROOT}/execution/accounts/account_${i}
       alloc+='"'${address}'": {"balance": "'${ACCOUNT_BALANCE}'"}'
     fi
     if [ ${i} -ne ${num_accounts} ]; then
@@ -129,37 +149,75 @@ generate() {
   # Generate genesis
   genesis=$(cat eth-pos/remote/genesis.json)
   jq --argjson alloc "${alloc}" '.alloc += $alloc' <<< ${genesis} \
-    > ${CONFIG_ROOT}/genesis.json
-  jq ".config.chainId = ${CHAIN_ID}" ${CONFIG_ROOT}/genesis.json \
-    > ${CONFIG_ROOT}/genesis.json.tmp && \
-    mv ${CONFIG_ROOT}/genesis.json.tmp ${CONFIG_ROOT}/genesis.json
+    > ${CONFIG_ROOT}/execution/genesis.json
+  jq ".config.chainId = ${CHAIN_ID}" ${CONFIG_ROOT}/execution/genesis.json \
+    > ${CONFIG_ROOT}/execution/genesis.json.tmp && \
+    mv ${CONFIG_ROOT}/execution/genesis.json.tmp \
+      ${CONFIG_ROOT}/execution/genesis.json
   # Get genesis hash
-  geth init --datadir ${CONFIG_ROOT}/tmp ${CONFIG_ROOT}/genesis.json
+  geth init --datadir ${CONFIG_ROOT}/tmp ${CONFIG_ROOT}/execution/genesis.json
   geth console --datadir ${CONFIG_ROOT}/tmp \
-    --exec 'eth.getBlock(0).hash' > ${CONFIG_ROOT}/genesis_hash 2> /dev/null
-  sed -i 's/"//g' ${CONFIG_ROOT}/genesis_hash
+    --exec 'eth.getBlock(0).hash' > ${CONFIG_ROOT}/execution/genesis_hash 2> \
+    /dev/null
+  sed -i 's/"//g' ${CONFIG_ROOT}/execution/genesis_hash
   rm -rf ${CONFIG_ROOT}/tmp
   # Generate config file, create each node a key and its associated enode
-  cp eth-pos/remote/config.toml ${CONFIG_ROOT}/config.toml
-  echo 'StaticNodes = [' >> ${CONFIG_ROOT}/config.toml
+  cp eth-pos/remote/config.toml ${CONFIG_ROOT}/execution/config.toml
+  echo 'StaticNodes = [' >> ${CONFIG_ROOT}/execution/config.toml
   local dir
   i=0
   for ip in ${nodes_ip_addresses[@]}; do
-    dir=${CONFIG_ROOT}/n${i}
+    dir=${CONFIG_ROOT}/execution/n${i}
     mkdir -p ${dir}/geth
-    bootnode --genkey ${CONFIG_ROOT}/n${i}/geth/nodekey
-    nodekey=$(bootnode --nodekey ${CONFIG_ROOT}/n${i}/geth/nodekey \
-      --writeaddress)
+    bootnode --genkey ${dir}/geth/nodekey
+    nodekey=$(bootnode --nodekey ${dir}/geth/nodekey --writeaddress)
     if [ ${i} -eq $((${#nodes_ip_addresses[@]}-1)) ]; then
       echo -e "\t\"enode://${nodekey}@${ip}:${GETH_PORT}\"" \
-        >> ${CONFIG_ROOT}/config.toml
+        >> ${CONFIG_ROOT}/execution/config.toml
     else
       echo -e "\t\"enode://${nodekey}@${ip}:${GETH_PORT}\"," \
-        >> ${CONFIG_ROOT}/config.toml
+        >> ${CONFIG_ROOT}/execution/config.toml
     fi
+    openssl rand -hex 32 > ${dir}/jwt.txt
     i=$((i+1))
   done
-  echo ']' >> ${CONFIG_ROOT}/config.toml
+  echo ']' >> ${CONFIG_ROOT}/execution/config.toml
+  # Generate consensus layer configuration
+  mkdir -p ${CONFIG_ROOT}/consensus
+
+  mkdir -p ${CONFIG_ROOT}/consensus/eth2-config
+  lcli new-testnet \
+    --spec mainnet \
+    --deposit-contract-address 0x0420420420420420420420420420420420420420 \
+    --testnet-dir ${CONFIG_ROOT}/consensus/eth2-config \
+    --min-genesis-active-validator-count ${VALIDATOR_COUNT} \
+    --min-genesis-time $(echo $(expr $(date +%s) + ${GENESIS_DELAY})) \
+    --genesis-delay ${GENESIS_DELAY} \
+    --genesis-fork-version ${GENESIS_FORK_VERSION} \
+    --altair-fork-epoch ${ALTAIR_FORK_EPOCH} \
+    --bellatrix-fork-epoch ${BELLATRIX_FORK_EPOCH} \
+    --capella-fork-epoch ${CAPELLA_FORK_EPOCH} \
+    --ttd ${TTD} \
+    --eth1-block-hash $(cat ${CONFIG_ROOT}/genesis_hash) \
+    --eth1-id ${CHAIN_ID} \
+    --eth1-follow-distance 1 \
+    --seconds-per-slot ${SECONDS_PER_SLOT} \
+    --seconds-per-eth1-block ${SECONDS_PER_ETH1_BLOCK} \
+    --proposer-score-boost 40 \
+    --validator-count ${VALIDATOR_COUNT} \
+    --interop-genesis-state \
+    --force
+  lcli mnemonic-validators \
+    --base-dir ${CONFIG_ROOT}/consensus/ \
+    --count ${VALIDATOR_COUNT} \
+    --mnemonic-phrase "${MNENOMIC_PHRASE}" \
+    --testnet-dir ${CONFIG_ROOT}/consensus/eth2-config
+  local genesis_time=$(lcli pretty-ssz state_merge \
+    ${CONFIG_ROOT}/consensus/genesis.ssz | jq | \
+    grep -Po 'genesis_time": "\K.*\d')
+  local capella_time=$((genesis_time + (CAPELLA_FORK_EPOCH * 32 * SECONDS_PER_SLOT)))
+  sed -i 's/"shanghaiTime".*$/"shanghaiTime": '"${capella_time}"',/g' \
+    ${CONFIG_ROOT}/genesis.json
   tar -czf ${DEPLOY_ROOT}/config.tar.gz -C ${CONFIG_ROOT} .
   rm -rf ${CONFIG_ROOT}
   trap - ERR

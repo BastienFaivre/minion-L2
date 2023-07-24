@@ -143,7 +143,7 @@ clone_and_build_lighthouse() {
   git clone ${LIGHTHOUSE_URL} ${INSTALL_ROOT}/lighthouse
   cd ${INSTALL_ROOT}/lighthouse
   git checkout ${LIGHTHOUSE_BRANCH}
-  make
+  make install install-lcli
   trap - ERR
 }
 
