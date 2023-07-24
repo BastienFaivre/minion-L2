@@ -103,6 +103,7 @@ generate() {
   mkdir -p ${CONFIG_ROOT}/accounts
   mkdir -p ${CONFIG_ROOT}/accounts/keystore
   mkdir -p ${CONFIG_ROOT}/tmp
+  # Generate accounts
   local alloc='{'
   for i in $(seq 0 ${num_accounts}); do
     printf "%d\n%d\n" ${i} ${i} | geth --datadir ${CONFIG_ROOT}/tmp \
@@ -125,11 +126,20 @@ generate() {
     fi
     rm -rf ${CONFIG_ROOT}/tmp/*
   done
-  rm -rf ${CONFIG_ROOT}/tmp
+  # Generate genesis
   genesis=$(cat eth-pos/remote/genesis.json)
   jq --argjson alloc "${alloc}" '.alloc += $alloc' <<< ${genesis} \
     > ${CONFIG_ROOT}/genesis.json
-  jq ".config.chainId = ${CHAIN_ID}" -i ${CONFIG_ROOT}/genesis.json
+  jq ".config.chainId = ${CHAIN_ID}" ${CONFIG_ROOT}/genesis.json \
+    > ${CONFIG_ROOT}/genesis.json.tmp && \
+    mv ${CONFIG_ROOT}/genesis.json.tmp ${CONFIG_ROOT}/genesis.json
+  # Get genesis hash
+  geth init --datadir ${CONFIG_ROOT}/tmp ${CONFIG_ROOT}/genesis.json
+  geth console --datadir ${CONFIG_ROOT}/tmp \
+    --exec 'eth.getBlock(0).hash' > ${CONFIG_ROOT}/genesis_hash 2> /dev/null
+  sed -i 's/"//g' ${CONFIG_ROOT}/genesis_hash
+  rm -rf ${CONFIG_ROOT}/tmp
+  # Generate config file, create each node a key and its associated enode
   cp eth-pos/remote/config.toml ${CONFIG_ROOT}/config.toml
   echo 'StaticNodes = [' >> ${CONFIG_ROOT}/config.toml
   local dir
