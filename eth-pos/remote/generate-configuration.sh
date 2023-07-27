@@ -126,7 +126,7 @@ generate() {
   for i in $(seq 0 ${num_accounts}); do
     printf "%d\n%d\n" ${i} ${i} | geth --datadir ${CONFIG_ROOT}/tmp \
       account new > /dev/null 2>&1
-    cp ${CONFIG_ROOT}/tmp/keystore/* ${CONFIG_ROOT}/accounts/keystore/
+    cp ${CONFIG_ROOT}/tmp/keystore/* ${CONFIG_ROOT}/execution/accounts/keystore/
     keypath=$(ls ${CONFIG_ROOT}/tmp/keystore/UTC--*)
     address=${keypath##*--}
     private=$(./eth-pos/remote/extract.py ${keypath} ${i})
@@ -155,7 +155,8 @@ generate() {
     mv ${CONFIG_ROOT}/execution/genesis.json.tmp \
       ${CONFIG_ROOT}/execution/genesis.json
   # Get genesis hash
-  geth init --datadir ${CONFIG_ROOT}/tmp ${CONFIG_ROOT}/execution/genesis.json
+  geth init --datadir ${CONFIG_ROOT}/tmp ${CONFIG_ROOT}/execution/genesis.json \
+    > /dev/null 2>&1
   geth console --datadir ${CONFIG_ROOT}/tmp \
     --exec 'eth.getBlock(0).hash' > ${CONFIG_ROOT}/execution/genesis_hash 2> \
     /dev/null
@@ -184,40 +185,47 @@ generate() {
   echo ']' >> ${CONFIG_ROOT}/execution/config.toml
   # Generate consensus layer configuration
   mkdir -p ${CONFIG_ROOT}/consensus
-
   mkdir -p ${CONFIG_ROOT}/consensus/eth2-config
+  # Create the genesis state
   lcli new-testnet \
     --spec mainnet \
-    --deposit-contract-address 0x0420420420420420420420420420420420420420 \
-    --testnet-dir ${CONFIG_ROOT}/consensus/eth2-config \
-    --min-genesis-active-validator-count ${VALIDATOR_COUNT} \
-    --min-genesis-time $(echo $(expr $(date +%s) + ${GENESIS_DELAY})) \
-    --genesis-delay ${GENESIS_DELAY} \
-    --genesis-fork-version ${GENESIS_FORK_VERSION} \
+    --derived-genesis-state \
+    --force \
     --altair-fork-epoch ${ALTAIR_FORK_EPOCH} \
     --bellatrix-fork-epoch ${BELLATRIX_FORK_EPOCH} \
     --capella-fork-epoch ${CAPELLA_FORK_EPOCH} \
-    --ttd ${TTD} \
-    --eth1-block-hash $(cat ${CONFIG_ROOT}/genesis_hash) \
-    --eth1-id ${CHAIN_ID} \
+    --deposit-contract-address 0x0420420420420420420420420420420420420420 \
+    --eth1-block-hash $(cat ${CONFIG_ROOT}/execution/genesis_hash) \
     --eth1-follow-distance 1 \
-    --seconds-per-slot ${SECONDS_PER_SLOT} \
-    --seconds-per-eth1-block ${SECONDS_PER_ETH1_BLOCK} \
+    --eth1-id ${CHAIN_ID} \
+    --genesis-delay ${GENESIS_DELAY} \
+    --genesis-fork-version ${GENESIS_FORK_VERSION} \
+    --min-genesis-active-validator-count ${MIN_ACTIVE_VALIDATOR_COUNT} \
+    --min-genesis-time $(echo $(expr $(date +%s) + ${GENESIS_DELAY})) \
+    --mnemonic-phrase "${MNENOMIC_PHRASE}" \
     --proposer-score-boost 40 \
+    --seconds-per-eth1-block ${SECONDS_PER_ETH1_BLOCK} \
+    --seconds-per-slot ${SECONDS_PER_SLOT} \
+    --testnet-dir ${CONFIG_ROOT}/consensus/eth2-config \
+    --ttd ${TTD} \
     --validator-count ${VALIDATOR_COUNT} \
-    --interop-genesis-state \
-    --force
+    > /dev/null 2>&1
+  # Create validator keys
   lcli mnemonic-validators \
-    --base-dir ${CONFIG_ROOT}/consensus/ \
+    --spec mainnet \
+    --base-dir ${CONFIG_ROOT}/consensus \
     --count ${VALIDATOR_COUNT} \
     --mnemonic-phrase "${MNENOMIC_PHRASE}" \
-    --testnet-dir ${CONFIG_ROOT}/consensus/eth2-config
+    --node-count ${#nodes_ip_addresses[@]} \
+    --testnet-dir ${CONFIG_ROOT}/consensus/eth2-config \
+    > /dev/null 2>&1
+  # Modify genesis time in execution layer configuration
   local genesis_time=$(lcli pretty-ssz state_merge \
-    ${CONFIG_ROOT}/consensus/genesis.ssz | jq | \
+    ${CONFIG_ROOT}/consensus/eth2-config/genesis.ssz | jq | \
     grep -Po 'genesis_time": "\K.*\d')
   local capella_time=$((genesis_time + (CAPELLA_FORK_EPOCH * 32 * SECONDS_PER_SLOT)))
   sed -i 's/"shanghaiTime".*$/"shanghaiTime": '"${capella_time}"',/g' \
-    ${CONFIG_ROOT}/genesis.json
+    ${CONFIG_ROOT}/execution/genesis.json
   tar -czf ${DEPLOY_ROOT}/config.tar.gz -C ${CONFIG_ROOT} .
   rm -rf ${CONFIG_ROOT}
   trap - ERR
@@ -238,10 +246,10 @@ setup() {
   mkdir -p ${DEPLOY_ROOT}/config
   tar -xzf ${DEPLOY_ROOT}/config.tar.gz -C ${DEPLOY_ROOT}/config
   rm -rf ${DEPLOY_ROOT}/config.tar.gz
-  for dir in ${DEPLOY_ROOT}/config/n*; do
+  for dir in ${DEPLOY_ROOT}/config/execution/n*; do
     test -d "${dir}" || continue
     test -d "${dir}/geth" || continue
-    geth init --datadir ${dir} ${DEPLOY_ROOT}/config/genesis.json
+    geth init --datadir ${dir} ${DEPLOY_ROOT}/config/execution/genesis.json
   done
   trap - ERR
 }

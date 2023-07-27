@@ -26,9 +26,9 @@ readonly GETH_PORT=30303
 readonly GETH_DISCOVERY_PORT=30303
 readonly GETH_HTTP_PORT=8545
 readonly GETH_WS_PORT=8546
-# TODO make validator count an argument
-readonly VALIDATOR_COUNT=8
-readonly GENESIS_DELAY=180
+readonly MIN_ACTIVE_VALIDATOR_COUNT=32
+readonly VALIDATOR_COUNT=100 # use multiple of number of nodes
+readonly GENESIS_DELAY=60
 readonly GENESIS_FORK_VERSION=0x00002023
 readonly ALTAIR_FORK_EPOCH=0
 readonly BELLATRIX_FORK_EPOCH=0

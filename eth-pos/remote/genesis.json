@@ -19,7 +19,7 @@
     "terminalTotalDifficultyPassed": true
   },
   "nonce": "0x2023",
-  "timestamp": "0x00",
+  "timestamp": "0",
   "extraData": "0x887b30d1e617484474521f31a37376760299fa7f15eb4214fce4157744b896c2",
   "gasLimit": "0x1c9c380",
   "difficulty": "0x20000",

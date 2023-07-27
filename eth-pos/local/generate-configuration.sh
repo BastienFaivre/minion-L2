@@ -88,9 +88,18 @@ send_configuration() {
       IFS=':' read -r host port <<< "${remote_host}"
       ssh -p ${port} ${host} "rm -rf ${DEPLOY_ROOT}; mkdir -p ${DEPLOY_ROOT}"
       mkdir -p ./tmp/config-n${i}
-      cp ./tmp/config/config.toml ./tmp/config-n${i}/config.toml
-      cp ./tmp/config/genesis.json ./tmp/config-n${i}/genesis.json
-      cp -r ./tmp/config/n${i} ./tmp/config-n${i}/n${i}
+      mkdir -p ./tmp/config-n${i}/execution
+      cp ./tmp/config/execution/config.toml \
+        ./tmp/config-n${i}/execution/config.toml
+      cp ./tmp/config/execution/genesis.json \
+        ./tmp/config-n${i}/execution/genesis.json
+      cp -r ./tmp/config/execution/n${i} ./tmp/config-n${i}/execution/n${i}
+      mv ./tmp/config-n${i}/execution/n${i}/jwt.txt ./tmp/config-n${i}/jwt.txt
+      mkdir -p ./tmp/config-n${i}/consensus
+      cp -r ./tmp/config/consensus/eth2-config \
+        ./tmp/config-n${i}/consensus/eth2-config
+      cp -r ./tmp/config/consensus/node_$((${i} + 1)) \
+        ./tmp/config-n${i}/consensus/n${i}
       tar -czf ./tmp/config-n${i}.tar.gz -C ./tmp/config-n${i} .
       scp -P ${port} ./tmp/config-n${i}.tar.gz \
         ${host}:${DEPLOY_ROOT}/config.tar.gz
