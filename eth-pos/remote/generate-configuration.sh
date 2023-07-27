@@ -219,6 +219,17 @@ generate() {
     --node-count ${#nodes_ip_addresses[@]} \
     --testnet-dir ${CONFIG_ROOT}/consensus/eth2-config \
     > /dev/null 2>&1
+  # Create the bootnode
+  lcli generate-bootnode-enr \
+    --spec mainnet \
+    --genesis-fork-version ${GENESIS_FORK_VERSION} \
+    --ip 0.0.0.0 \
+    --output-dir ${DEPLOY_ROOT}/config/consensus/bootnode \
+    --testnet-dir ${DEPLOY_ROOT}/config/consensus/eth2-config \
+    --tcp-port ${BOOTNODE_PORT} \
+    --udp-port ${BOOTNODE_PORT}
+  echo "- $(cat ${DEPLOY_ROOT}/config/consensus/bootnode/enr.dat)" \
+    > ${CONFIG_ROOT}/consensus/eth2-config/boot_enr.yaml
   # Modify genesis time in execution layer configuration
   local genesis_time=$(lcli pretty-ssz state_merge \
     ${CONFIG_ROOT}/consensus/eth2-config/genesis.ssz | jq | \
