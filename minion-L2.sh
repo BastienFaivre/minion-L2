@@ -151,6 +151,11 @@ if [[ "${kill}" == true ]]; then
   exit 0
 fi
 
+if [[ "${steps}" == *'4'* ]]; then
+  cmd="./eth-pos/local/eth-pos.sh ${remote_hosts_file} kill"
+  utils::exec_cmd "${cmd}" 'Kill Ethereum PoS network'
+fi
+
 if [[ "${clean}" == true ]]; then
   cmd="./scripts/local/clean.sh ${remote_hosts_file}"
   utils::exec_cmd "${cmd}" 'Clean remote hosts'

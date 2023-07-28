@@ -100,6 +100,10 @@ send_configuration() {
         ./tmp/config-n${i}/consensus/eth2-config
       cp -r ./tmp/config/consensus/node_$((${i} + 1)) \
         ./tmp/config-n${i}/consensus/n${i}
+      if [ ${i} -eq 0 ]; then
+        cp -r ./tmp/config/consensus/bootnode \
+          ./tmp/config-n${i}/consensus/bootnode
+      fi
       tar -czf ./tmp/config-n${i}.tar.gz -C ./tmp/config-n${i} .
       scp -P ${port} ./tmp/config-n${i}.tar.gz \
         ${host}:${DEPLOY_ROOT}/config.tar.gz

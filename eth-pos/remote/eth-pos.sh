@@ -107,61 +107,63 @@ start() {
   if [ ! -d ${DEPLOY_ROOT} ]; then
     utils::err "function ${FUNCNAME[0]}(): No configuration found. Please run "\
 'generate-configuration.sh first.'
+    trap - ERR
+    exit 1
+  fi
   # Start execution layer
   geth --datadir ${DEPLOY_ROOT}/config/execution/n* \
     --config ${DEPLOY_ROOT}/config/execution/config.toml \
-    --verbosity 2 \
     --networkid ${CHAIN_ID} \
     --authrpc.jwtsecret ${DEPLOY_ROOT}/config/jwt.txt \
-    > ${DEPLOY_ROOT}/config/execution/out.log \
-    2> ${DEPLOY_ROOT}/config/execution/err.log &
+    > ${DEPLOY_ROOT}/config/execution/out.log 2>&1 &
   local pid=$!
-  echo ${pid} > ${DEPLOY_ROOT}/config/execution/pid
-  done
+  echo ${pid} > ${DEPLOY_ROOT}/config/pids
   # Start consensus layer bootnode (only on a single host)
-  # check if consensus node is n0
   if [ -d ${DEPLOY_ROOT}/config/consensus/n0 ]; then
-    mkdir -p ${DEPLOY_ROOT}/config/consensus/bootnode
-    lcli generate-bootnode-enr \
-      --spec mainnet \
-      --genesis-fork-version ${GENESIS_FORK_VERSION} \
-      --ip 0.0.0.0 \
-      --output-dir ${DEPLOY_ROOT}/config/consensus/bootnode \
-      --testnet-dir ${DEPLOY_ROOT}/config/consensus/eth2-config \
-      --tcp-port ${BOOTNODE_PORT} \
-      --udp-port ${BOOTNODE_PORT}
     lighthouse boot_node \
+      --disable-packet-filter \
       --listen-address 0.0.0.0 \
       --network-dir ${DEPLOY_ROOT}/config/consensus/bootnode \
       --port ${BOOTNODE_PORT} \
       --testnet-dir ${DEPLOY_ROOT}/config/consensus/eth2-config \
-      > ${DEPLOY_ROOT}/config/consensus/bootnode/out.log \
-      2> ${DEPLOY_ROOT}/config/consensus/bootnode/err.log &
+      > ${DEPLOY_ROOT}/config/consensus/bootnode/out.log 2>&1 &
     local pid=$!
-    echo ${pid} > ${DEPLOY_ROOT}/config/consensus/bootnode/pid
+    echo ${pid} >> ${DEPLOY_ROOT}/config/pids
   fi
   # Wait for the nodes to start
   sleep 5
   # Start beacon node
   lighthouse bn \
+    --disable-packet-filter \
+    --enable-private-discovery \
+    --http \
     --staking \
-    --subscribe-all-subnets \
     --datadir ${DEPLOY_ROOT}/config/consensus/n* \
-    --debug-level debug \
+    --debug-level info \
     --enr-address 0.0.0.0 \
     --enr-tcp-port ${BEACON_NODE_ENR_PORT} \
     --enr-udp-port ${BEACON_NODE_ENR_PORT} \
     --execution-endpoints http://localhost:8551 \
     --execution-jwt ${DEPLOY_ROOT}/config/jwt.txt \
     --testnet-dir ${DEPLOY_ROOT}/config/consensus/eth2-config \
-    > ${DEPLOY_ROOT}/config/consensus/n*/out.log \
-    2> ${DEPLOY_ROOT}/config/consensus/n*/err.log &
+    > ${DEPLOY_ROOT}/config/consensus/bn_out.log 2>&1 &
   local pid=$!
-  echo ${pid} > ${DEPLOY_ROOT}/config/consensus/n*/pid
+  echo ${pid} >> ${DEPLOY_ROOT}/config/pids
   # Wait for the node to start
   sleep 5
   # Start validator client
-  # TODO
+  lighthouse vc \
+    --init-slashing-protection \
+    --beacon-nodes http://localhost:5052 \
+    --datadir ${DEPLOY_ROOT}/config/consensus/n* \
+    --debug-level info \
+    --suggested-fee-recipient 0x0000000000000000000000000000000000000000 \
+    --testnet-dir ${DEPLOY_ROOT}/config/consensus/eth2-config \
+    > ${DEPLOY_ROOT}/config/consensus/vc_out.log 2>&1 &
+  local pid=$!
+  echo ${pid} >> ${DEPLOY_ROOT}/config/pids
+  # Wait for the node to start
+  sleep 5
   trap - ERR
 }
 
@@ -183,18 +185,17 @@ _kill() {
     exit 1
   fi
   local signal=${1}
-  for dir in ${DEPLOY_ROOT}/n*; do
-    test -d ${dir} || continue
-    test -d ${dir}/keystore || continue
-    test -f ${dir}/pid || continue
-    pid=${dir}/pid
-    if ! kill -0 $(cat ${pid}) &> /dev/null; then
-      rm -rf ${pid}
+  if [ ! -f ${DEPLOY_ROOT}/config/pids ]; then
+    trap - ERR
+    exit 0
+  fi
+  for pid in $(cat ${DEPLOY_ROOT}/config/pids); do
+    if ! kill -0 ${pid} &> /dev/null; then
       continue
     fi
-    kill ${signal} $(cat ${pid})
-    rm -rf ${pid}
+    kill ${signal} ${pid}
   done
+  rm -rf ${DEPLOY_ROOT}/config/pids
   trap - ERR
 }
 
