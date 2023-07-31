@@ -154,10 +154,6 @@ generate() {
     > ${CONFIG_ROOT}/execution/genesis.json.tmp && \
     mv ${CONFIG_ROOT}/execution/genesis.json.tmp \
       ${CONFIG_ROOT}/execution/genesis.json
-  # local shanghaiTime=$(echo $(expr $(date +%s) + ${GENESIS_DELAY}))
-  # shanghaiTime=$((shanghaiTime + (CAPELLA_FORK_EPOCH * 32 * SECONDS_PER_SLOT)))
-  # sed -i 's/"shanghaiTime".*$/"shanghaiTime": '"${shanghaiTime}"',/g' \
-  # ${CONFIG_ROOT}/execution/genesis.json
   # Get genesis hash
   geth init --datadir ${CONFIG_ROOT}/tmp ${CONFIG_ROOT}/execution/genesis.json \
     > /dev/null 2>&1
@@ -205,7 +201,7 @@ generate() {
     --genesis-delay ${GENESIS_DELAY} \
     --genesis-fork-version ${GENESIS_FORK_VERSION} \
     --min-genesis-active-validator-count ${MIN_ACTIVE_VALIDATOR_COUNT} \
-    --min-genesis-time ${shanghaiTime} \
+    --min-genesis-time $(echo $(expr $(date +%s) + ${GENESIS_DELAY})) \
     --mnemonic-phrase "${MNENOMIC_PHRASE}" \
     --proposer-score-boost 40 \
     --seconds-per-eth1-block ${SECONDS_PER_ETH1_BLOCK} \
@@ -234,13 +230,6 @@ generate() {
     --udp-port ${BOOTNODE_PORT}
   echo "- $(cat ${DEPLOY_ROOT}/config/consensus/bootnode/enr.dat)" \
     > ${CONFIG_ROOT}/consensus/eth2-config/boot_enr.yaml
-  # Modify genesis time in execution layer configuration
-  # local genesis_time=$(lcli pretty-ssz state_merge \
-  #   ${CONFIG_ROOT}/consensus/eth2-config/genesis.ssz | jq | \
-  #   grep -Po 'genesis_time": "\K.*\d')
-  # local capella_time=$((genesis_time + (CAPELLA_FORK_EPOCH * 32 * SECONDS_PER_SLOT)))
-  # sed -i 's/"shanghaiTime".*$/"shanghaiTime": '"${capella_time}"',/g' \
-  #   ${CONFIG_ROOT}/execution/genesis.json
   tar -czf ${DEPLOY_ROOT}/config.tar.gz -C ${CONFIG_ROOT} .
   rm -rf ${CONFIG_ROOT}
   trap - ERR
