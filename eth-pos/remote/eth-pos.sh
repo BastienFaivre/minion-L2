@@ -140,7 +140,7 @@ start() {
     --staking \
     --datadir ${DEPLOY_ROOT}/config/consensus/n* \
     --debug-level info \
-    --enr-address 0.0.0.0 \
+    --enr-address $(hostname -I | awk '{print $1}') \
     --enr-tcp-port ${BEACON_NODE_ENR_PORT} \
     --enr-udp-port ${BEACON_NODE_ENR_PORT} \
     --execution-endpoints http://localhost:8551 \

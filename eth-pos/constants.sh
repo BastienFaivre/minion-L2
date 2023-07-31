@@ -33,4 +33,5 @@ readonly SECONDS_PER_SLOT=3
 readonly SECONDS_PER_ETH1_BLOCK=6
 readonly MNENOMIC_PHRASE='skirt leg mobile alert chuckle labor grid twenty concert twenty vibrant urge'
 readonly BOOTNODE_PORT=30304
-readonly BEACON_NODE_ENR_PORT=5052
+readonly BEACON_NODE_ENR_PORT=9000
+readonly BEACON_NODE_HTTP_PORT=5052
