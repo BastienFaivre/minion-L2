@@ -3,8 +3,8 @@
 # Author: Bastien Faivre
 # Project: EPFL, DCL, Performance and Security Evaluation of Layer 2 Blockchain
 #          Systems
-# Date: July 2023
-# Description: Install Optimism on the remote hosts
+# Date: August 2023
+# Description: Install and build Optimism on the remote hosts
 #===============================================================================
 
 #===============================================================================
@@ -56,7 +56,7 @@ remote_hosts_list=($(utils::create_remote_hosts_list ${remote_hosts_file}))
 trap 'exit 1' ERR
 
 cmd='./L2/optimism/remote/install-optimism.sh'
-utils::exec_cmd_on_remote_hosts "${cmd}" 'Install Optimism on remote hosts' \
-  "${remote_hosts_list[@]}"
+utils::exec_cmd_on_remote_hosts "${cmd}" 'Install and build Optimism on remote'\
+'hosts'  "${remote_hosts_list[@]}"
 
 trap - ERR

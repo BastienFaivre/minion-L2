@@ -3,8 +3,8 @@
 # Author: Bastien Faivre
 # Project: EPFL, DCL, Performance and Security Evaluation of Layer 2 Blockchain
 #          Systems
-# Date: July 2023
-# Description: Install and build Optimism Stack components
+# Date: August 2023
+# Description: Install and build Optimism
 #===============================================================================
 
 #===============================================================================
@@ -106,7 +106,9 @@ install_go() {
 #######################################
 initialize_directories() {
   trap 'exit 1' ERR
-  rm -rf ${INSTALL_FOLDER}/optimism ${INSTALL_FOLDER}/op-geth
+  mkdir -p ${INSTALL_FOLDER}
+  rm -rf ${INSTALL_ROOT}
+  mkdir -p ${INSTALL_ROOT}
   trap - ERR
 }
 
@@ -123,8 +125,9 @@ initialize_directories() {
 #######################################
 clone_and_build_OP_monorepo() {
   trap 'exit 1' ERR
-  git clone ${OP_MONOREPO_URL} ${INSTALL_FOLDER}/optimism
-  cd ${INSTALL_FOLDER}/optimism
+  mkdir -p ${INSTALL_ROOT}/optimism
+  git clone ${OP_MONOREPO_URL} ${INSTALL_ROOT}/optimism
+  cd ${INSTALL_ROOT}/optimism
   pnpm install
   curl -L https://foundry.paradigm.xyz | bash
   export PATH="$PATH:/home/user/.foundry/bin"
@@ -147,8 +150,9 @@ clone_and_build_OP_monorepo() {
 #######################################
 clone_and_build_OP_geth() {
   trap 'exit 1' ERR
-  git clone ${OP_GETH_URL} ${INSTALL_FOLDER}/op-geth
-  cd ${INSTALL_FOLDER}/op-geth
+  mkdir -p ${INSTALL_ROOT}/op-geth
+  git clone ${OP_GETH_URL} ${INSTALL_ROOT}/op-geth
+  cd ${INSTALL_ROOT}/op-geth
   make geth
   trap - ERR
 }
