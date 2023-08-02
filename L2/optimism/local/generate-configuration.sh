@@ -3,8 +3,8 @@
 # Author: Bastien Faivre
 # Project: EPFL, DCL, Performance and Security Evaluation of Layer 2 Blockchain
 #          Systems
-# Date: July 2023
-# Description: Prepare the hosts and generate the configuration
+# Date: August 2023
+# Description: Generate configuration and setup the hosts
 #===============================================================================
 
 #===============================================================================
@@ -32,8 +32,9 @@ cd "$(dirname "${0}")"
 #   None
 #######################################
 usage() {
-  echo 'Usage: $(basename ${0}) <remote hosts file> <number of nodes>' \
-'<L1 node url> <L1 master account file>'
+  echo 'Usage: $(basename ${0}) <remote hosts file> <L1 master account file>'
+  echo 'Note: all provided remote hosts should have a local L1 node running '\
+'and accessible via http://localhost:8545'
 }
 
 #######################################
@@ -250,55 +251,69 @@ fi
 remote_hosts_file="$(cd "$(dirname ${remote_hosts_file})"; pwd)/\
 $(basename "${remote_hosts_file}")"
 remote_hosts_list=($(utils::create_remote_hosts_list ${remote_hosts_file}))
-number_of_nodes=${2}
-l1_node_url=${3}
-l1_master_account_file=$caller_dir/${4}
-l1_master_account_private_key=$(cat ${l1_master_account_file} | cut -d':' -f2) 
+l1_master_account_file=$caller_dir/${2}
+l1_master_account_private_key=$(cat ${l1_master_account_file} | cut -d':' -f2)
 
 trap 'exit 1' ERR
 
-cmd="prepare ${number_of_nodes} ${remote_hosts_list[@]}"
-utils::exec_cmd "${cmd}" 'Prepare the hosts'
-
-cmd="retrieve_static_nodes ${remote_hosts_list[@]}"
-utils::exec_cmd "${cmd}" 'Retrieve static nodes'
-
-cmd="send_static_nodes ${remote_hosts_list[@]}"
-utils::exec_cmd "${cmd}" 'Send static nodes'
+# TODO: uncomment
+# remote_hosts_ip_list=()
+# for remote_host in ${remote_hosts_list[@]}; do
+#   remote_hosts_ip_list+=($(utils::extract_ip_address ${remote_host}))
+# done
+# TODO: remove
+remote_hosts_ip_list=('192.168.201.7' '192.168.201.8' '192.168.201.9' \
+'192.168.201.10' '192.168.201.11')
 
 first_remote_host=${remote_hosts_list[0]}
 
-cmd='./L2/optimism/remote/generate-configuration.sh generate-keys '\
-"${l1_node_url} ${l1_master_account_private_key}"
-utils::exec_cmd_on_remote_hosts "${cmd}" 'Generate and fund accounts' \
+cmd="./L2/optimism/remote/generate-configuration.sh generate "\
+"${l1_master_account_private_key} ${remote_hosts_ip_list[@]}"
+utils::exec_cmd_on_remote_hosts "${cmd}" 'Generate the configuration' \
   "${first_remote_host}"
 
-cmd="retrieve_accounts ${first_remote_host}"
-utils::exec_cmd "${cmd}" 'Retrieve accounts'
+# cmd="prepare ${number_of_nodes} ${remote_hosts_list[@]}"
+# utils::exec_cmd "${cmd}" 'Prepare the hosts'
 
-cmd='./L2/optimism/remote/generate-configuration.sh configure-network '\
-"${l1_node_url}"
-utils::exec_cmd_on_remote_hosts "${cmd}" 'Configure network' \
-  "${first_remote_host}"
+# cmd="retrieve_static_nodes ${remote_hosts_list[@]}"
+# utils::exec_cmd "${cmd}" 'Retrieve static nodes'
 
-cmd='./L2/optimism/remote/generate-configuration.sh deploy-L1-contracts '\
-"${l1_node_url}"
-utils::exec_cmd_on_remote_hosts "${cmd}" 'Deploy L1 contracts' \
-  "${first_remote_host}"
+# cmd="send_static_nodes ${remote_hosts_list[@]}"
+# utils::exec_cmd "${cmd}" 'Send static nodes'
 
-cmd='./L2/optimism/remote/generate-configuration.sh generate-L2-configuration '\
-"${l1_node_url}"
-utils::exec_cmd_on_remote_hosts "${cmd}" 'Generate L2 configuration' \
-  "${first_remote_host}"
+# first_remote_host=${remote_hosts_list[0]}
 
-cmd="retrieve_configuration ${first_remote_host}"
-utils::exec_cmd "${cmd}" 'Retrieve configuration'
+# cmd='./L2/optimism/remote/generate-configuration.sh generate-keys '\
+# "${l1_node_url} ${l1_master_account_private_key}"
+# utils::exec_cmd_on_remote_hosts "${cmd}" 'Generate and fund accounts' \
+#   "${first_remote_host}"
 
-cmd="send_configuration ${remote_hosts_list[@]}"
-utils::exec_cmd "${cmd}" 'Send configuration'
+# cmd="retrieve_accounts ${first_remote_host}"
+# utils::exec_cmd "${cmd}" 'Retrieve accounts'
 
-cmd='./L2/optimism/remote/generate-configuration.sh initialize-nodes'
-utils::exec_cmd_on_remote_hosts "${cmd}" 'Initialize nodes' \
-  "${remote_hosts_list[@]}"
+# cmd='./L2/optimism/remote/generate-configuration.sh configure-network '\
+# "${l1_node_url}"
+# utils::exec_cmd_on_remote_hosts "${cmd}" 'Configure network' \
+#   "${first_remote_host}"
+
+# cmd='./L2/optimism/remote/generate-configuration.sh deploy-L1-contracts '\
+# "${l1_node_url}"
+# utils::exec_cmd_on_remote_hosts "${cmd}" 'Deploy L1 contracts' \
+#   "${first_remote_host}"
+
+# cmd='./L2/optimism/remote/generate-configuration.sh generate-L2-configuration '\
+# "${l1_node_url}"
+# utils::exec_cmd_on_remote_hosts "${cmd}" 'Generate L2 configuration' \
+#   "${first_remote_host}"
+
+# cmd="retrieve_configuration ${first_remote_host}"
+# utils::exec_cmd "${cmd}" 'Retrieve configuration'
+
+# cmd="send_configuration ${remote_hosts_list[@]}"
+# utils::exec_cmd "${cmd}" 'Send configuration'
+
+# cmd='./L2/optimism/remote/generate-configuration.sh initialize-nodes'
+# utils::exec_cmd_on_remote_hosts "${cmd}" 'Initialize nodes' \
+#   "${remote_hosts_list[@]}"
 
 trap - ERR

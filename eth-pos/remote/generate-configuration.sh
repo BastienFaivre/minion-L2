@@ -4,7 +4,7 @@
 # Project: EPFL, DCL, Performance and Security Evaluation of Layer 2 Blockchain
 #          Systems
 # Date: July 2023
-# Description: Generate configuration and prepare the host
+# Description: Generate configuration and setup the host
 #===============================================================================
 
 #===============================================================================
@@ -53,7 +53,7 @@ setup_environment() {
     || [ ! -d ${INSTALL_ROOT}/lighthouse ];
   then
     utils::err "function ${FUNCNAME[0]}(): Installation not completed. Please "\
-'run install-optimism.sh first.'
+'run install-eth-pos.sh first.'
     trap - ERR
     exit 1
   fi
