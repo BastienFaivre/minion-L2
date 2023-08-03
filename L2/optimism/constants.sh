@@ -10,6 +10,7 @@
 readonly INSTALL_FOLDER='install'
 readonly INSTALL_ROOT="${INSTALL_FOLDER}/optimism"
 readonly DEPLOY_ROOT='deploy/optimism'
+readonly CONFIG_ROOT="${DEPLOY_ROOT}/config"
 readonly CHAIN_ID=10
 readonly GO_URL='https://go.dev/dl/go1.20.5.linux-amd64.tar.gz'
 readonly GO_PATH='/usr/local/go/bin'

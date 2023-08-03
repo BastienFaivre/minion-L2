@@ -4,7 +4,7 @@
 # Project: EPFL, DCL, Performance and Security Evaluation of Layer 2 Blockchain
 #          Systems
 # Date: August 2023
-# Description: Generate configuration and setup the host
+# Description: Generate configuration
 #===============================================================================
 
 #===============================================================================
@@ -33,7 +33,6 @@ usage() {
   echo "Usage: $(basename ${0}) <action> [options...]"
   echo 'Actions:'
   echo '  generate <L1 master account private key> <nodes ip addresses...>'
-  echo '  setup'
 }
 
 #######################################
@@ -108,6 +107,14 @@ setup_environment() {
     trap - ERR
     exit 1
   fi
+  export PATH=${HOME}/L2/optimism/remote/bin:$PATH
+  if ! command -v p2p-tool &> /dev/null
+  then
+    utils::err 'p2p-tool command not found in '\
+"${HOME}/L2/optimism/remote/bin"
+    trap - ERR
+    exit 1
+  fi
   trap - ERR
 }
 
@@ -135,8 +142,13 @@ generate() {
   local l1_node_url=http://localhost:8545
   rm -rf ${DEPLOY_ROOT}
   mkdir -p ${DEPLOY_ROOT}
+  mkdir -p ${CONFIG_ROOT}
+  (
+    cd ${INSTALL_ROOT}/optimism
+    git stash
+  )
   # Generate and funds accounts
-  local readonly ACCOUNTS_FOLDER=${DEPLOY_ROOT}/accounts
+  local readonly ACCOUNTS_FOLDER=${CONFIG_ROOT}/accounts
   mkdir -p ${ACCOUNTS_FOLDER}
   # Admin
   local output=$(cast wallet new)
@@ -164,150 +176,14 @@ generate() {
   address=$(echo "${output} | grep 'Address:' | awk '{print $2}'")
   private_key=$(echo "${output}" | grep 'Private key:' | awk '{print $3}')
   echo ${address}:${private_key} > ${ACCOUNTS_FOLDER}/account_sequencer
+  echo http://${nodes_ip_addresses[0]}:8545 > ${CONFIG_ROOT}/sequencer-url
   # Configure network
-  # TODO
-}
-
-#######################################
-# Prepare the hosts for the configuration generation
-# Globals:
-#   None
-# Arguments:
-#   $@: nodes names
-# Outputs:
-#   None
-# Returns:
-#   None
-#######################################
-prepare() {
-  trap 'exit 1' ERR
-  if ! utils::check_args_ge 1 $#; then
-    trap - ERR
-    exit 1
-  fi
-  setup_environment
-  rm -rf ${DEPLOY_ROOT}
-  mkdir -p ${DEPLOY_ROOT}
-  local authrpcport=6000
-  local port=7000
-  local httpport=8000
-  local wsport=9000
-  local p2pport=10000
-  local rpcport=11000
-  local ip=$(hostname -I | awk '{print $1}')
-  local dir
-  (
-    cd L2/optimism/remote
-    go mod init p2p-tool
-    go mod tidy
-    go build -o bin/p2p-tool p2p-tool.go
-  )
-  export PATH=${HOME}/L2/optimism/remote/bin:$PATH
-  for name in "$@"; do
-    dir=${DEPLOY_ROOT}/${name}
-    mkdir -p ${dir}
-    echo ${authrpcport} > ${dir}/authrpcport
-    echo ${port} > ${dir}/port
-    echo ${httpport} > ${dir}/httpport
-    echo ${wsport} > ${dir}/wsport
-    echo ${p2pport} > ${dir}/p2pport
-    echo ${rpcport} > ${dir}/rpcport
-    if [[ ${name} == *n0 ]]; then
-      echo http://${ip}:${httpport} > ${DEPLOY_ROOT}/sequencer-url
-    fi
-    p2p-tool --privKeyPath ${dir}/opnode_p2p_priv.txt --peerIDPath \
-      ${dir}/opnode_peer_id.txt
-    echo /ip4/${ip}/tcp/${p2pport}/p2p/$(cat ${dir}/opnode_peer_id.txt) \
-      >> ${DEPLOY_ROOT}/static-nodes-local.txt
-    authrpcport=$((authrpcport+1))
-    port=$((port+1))
-    httpport=$((httpport+1))
-    wsport=$((wsport+1))
-    p2pport=$((p2pport+1))
-    rpcport=$((rpcport+1))
-  done
-  cd ${INSTALL_ROOT}/optimism
-  git stash
-  trap - ERR
-}
-
-#######################################
-# Generate and funds admin, batcher, proposer and sequencer accounts
-# Globals:
-#   None
-# Arguments:
-#   $1: L1 node url
-#   $2: L1 master account private key
-# Outputs:
-#   None
-# Returns:
-#   None
-#######################################
-generate_and_funds_accounts() {
-  trap 'exit 1' ERR
-  if ! utils::check_args_eq 2 $#; then
-    trap - ERRs
-    exit 1
-  fi
-  setup_environment
-  local l1_node_url=${1}
-  local l1_master_sk=${2}
-  local readonly ACCOUNTS_FOLDER=${DEPLOY_ROOT}/accounts
-  mkdir -p ${ACCOUNTS_FOLDER}
-  # Admin
-  local output=$(cast wallet new)
-  local address=$(echo "${output}" | grep "Address:" | awk '{print $2}')
-  local private_key=$(echo "${output}" | grep "Private key:" | awk '{print $3}')
-  echo ${address}:${private_key} > ${ACCOUNTS_FOLDER}/account_admin
-  ./L2/optimism/remote/send.py ${l1_node_url} ${CHAIN_ID} ${l1_master_sk} ${address} \
-    ${ADMIN_BALANCE}
-  # Batcher
-  output=$(cast wallet new)
-  address=$(echo "${output}" | grep "Address:" | awk '{print $2}')
-  private_key=$(echo "${output}" | grep "Private key:" | awk '{print $3}')
-  echo ${address}:${private_key} > ${ACCOUNTS_FOLDER}/account_batcher
-  ./L2/optimism/remote/send.py ${l1_node_url} ${CHAIN_ID} ${l1_master_sk} ${address} \
-    ${BATCHER_BALANCE}
-  # Proposer
-  output=$(cast wallet new)
-  address=$(echo "${output}" | grep "Address:" | awk '{print $2}')
-  private_key=$(echo "${output}" | grep "Private key:" | awk '{print $3}')
-  echo ${address}:${private_key} > ${ACCOUNTS_FOLDER}/account_proposer
-  ./L2/optimism/remote/send.py ${l1_node_url} ${CHAIN_ID} ${l1_master_sk} ${address} \
-    ${PROPOSER_BALANCE}
-  # Sequencer
-  output=$(cast wallet new)
-  address=$(echo "${output}" | grep "Address:" | awk '{print $2}')
-  private_key=$(echo "${output}" | grep "Private key:" | awk '{print $3}')
-  echo ${address}:${private_key} > ${ACCOUNTS_FOLDER}/account_sequencer
-  trap - ERR
-}
-
-#######################################
-# Configure the network
-# Globals:
-#   None
-# Arguments:
-#   $1: L1 node url
-# Outputs:
-#   None
-# Returns:
-#   None
-#######################################
-configure_network() {
-  trap 'exit 1' ERR
-  if ! utils::check_args_eq 1 $#; then
-    trap - ERR
-    exit 1
-  fi
-  setup_environment
-  local l1_node_url=${1}
   local readonly DIR=${INSTALL_ROOT}/optimism/packages/contracts-bedrock
   rm -rf ${DIR}/.envrc
   cp ${DIR}/.envrc.example ${DIR}/.envrc
   sed -i "s|export ETH_RPC_URL=.*|export ETH_RPC_URL=${l1_node_url}|g" \
     ${DIR}/.envrc
-  local private_key=$(cat ${DEPLOY_ROOT}/accounts/account_admin \
+  local private_key=$(cat ${CONFIG_ROOT}/accounts/account_admin \
     | cut -d':' -f2)
   sed -i "s|export PRIVATE_KEY=.*|export PRIVATE_KEY=${private_key}|g" \
     ${DIR}/.envrc
@@ -317,13 +193,13 @@ configure_network() {
   local hash=$(echo "${output}" | grep "hash" | awk '{print $2}')
   local timestamp=$(echo "${output}" | grep "timestamp" | awk '{print $2}')
   local number=$(echo "${output}" | grep "number" | awk '{print $2}')
-  local admin_address=$(cat ${DEPLOY_ROOT}/accounts/account_admin \
+  local admin_address=$(cat ${CONFIG_ROOT}/accounts/account_admin \
     | cut -d':' -f1)
-  local batcher_address=$(cat ${DEPLOY_ROOT}/accounts/account_batcher \
+  local batcher_address=$(cat ${CONFIG_ROOT}/accounts/account_batcher \
     | cut -d':' -f1)
-  local proposer_address=$(cat ${DEPLOY_ROOT}/accounts/account_proposer \
+  local proposer_address=$(cat ${CONFIG_ROOT}/accounts/account_proposer \
     | cut -d':' -f1)
-  local sequencer_address=$(cat ${DEPLOY_ROOT}/accounts/account_sequencer \
+  local sequencer_address=$(cat ${CONFIG_ROOT}/accounts/account_sequencer \
     | cut -d':' -f1)
   sed -i "s/ADMIN/${admin_address}/g; \
     s/BATCHER/${batcher_address}/g; \
@@ -333,30 +209,8 @@ configure_network() {
     s/TIMESTAMP/${timestamp}/g; \
     s/\"l1ChainID\": 5,/\"l1ChainID\": ${CHAIN_ID},/g" \
     ${DIR}/deploy-config/getting-started.json
-
-  trap - ERR
-}
-
-#######################################
-# Deploy the L1 contracts
-# Globals:
-#   None
-# Arguments:
-#   $1: L1 node url
-# Outputs:
-#   None
-# Returns:
-#   None
-#######################################
-deploy_L1_contracts() {
-  trap 'exit 1' ERR
-  if ! utils::check_args_eq 1 $#; then
-    trap - ERR
-    exit 1
-  fi
-  setup_environment
-  local l1_node_url=${1}
-  local private_key=$(cat ${DEPLOY_ROOT}/accounts/account_admin \
+  # Deploy L1 contracts
+  private_key=$(cat ${CONFIG_ROOT}/accounts/account_admin \
     | cut -d':' -f2)
   cd ${INSTALL_ROOT}/optimism/packages/contracts-bedrock
   rm -rf L2OutputOracleProxy_address L1StandardBridgeProxy_address
@@ -371,28 +225,7 @@ deploy_L1_contracts() {
     > L2OutputOracleProxy_address
   jq -r .address deployments/getting-started/L1StandardBridgeProxy.json \
     > L1StandardBridgeProxy_address
-  trap - ERR
-}
-
-#######################################
-# Generate the L2 configuration
-# Globals:
-#   None
-# Arguments:
-#   $1: L1 node url
-# Outputs:
-#   None
-# Returns:
-#   None
-#######################################
-generate_L2_configuration() {
-  trap 'exit 1' ERR
-  if ! utils::check_args_eq 1 $#; then
-    trap - ERR
-    exit 1
-  fi
-  setup_environment
-  local l1_node_url=${1}
+  # Generate L2 configuration
   cd ${INSTALL_ROOT}/optimism/op-node
   rm -rf genesis.json rollup.json
   go run cmd/main.go genesis l2 \
@@ -403,30 +236,16 @@ generate_L2_configuration() {
     --outfile.l2 genesis.json \
     --outfile.rollup rollup.json \
     --l1-rpc ${l1_node_url}
-  trap - ERR
-}
-
-#######################################
-# Initialize nodes
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
-# Returns:
-#   None
-#######################################
-initialize_nodes() {
-  trap 'exit 1' ERR
-  if ! utils::check_args_eq 0 $#; then
-    trap - ERR
-    exit 1
-  fi
-  setup_environment
+  # Create nodes directories with p2p keys
   local dir
-  for dir in ${DEPLOY_ROOT}/n*; do
-    test -d ${dir} || continue
+  local i=0
+  for ip in ${nodes_ip_addresses[@]}; do
+    dir=${CONFIG_ROOT}/n${i}
+    mkdir -p ${dir}
+    p2p-tool --privKeyPath ${dir}/opnode_p2p_priv.txt --peerIDPath \
+      ${dir}/opnode_peer_id.txt
+    echo /ip4/${ip}/tcp/9222/p2p/$(cat ${dir}/opnode_peer_id.txt) | tr '\n' ','\
+      >> ${CONFIG_ROOT}/static-nodes.txt
     if [[ ${dir} == *n0 ]]; then
       echo 'pwd' > ${dir}/password
       cat ${DEPLOY_ROOT}/accounts/account_sequencer | cut -d':' -f2 \
@@ -435,8 +254,12 @@ initialize_nodes() {
         ${dir}/block-signer-key
     fi
     openssl rand -hex 32 > ${dir}/jwt.txt
-    geth init --datadir ${dir} ${DEPLOY_ROOT}/genesis.json
+    geth init --datadir ${dir} ${CONFIG_ROOT}/genesis.json > /dev/null 2>&1
+    i=$((i+1))
   done
+  sed -i 's/.$//' ${CONFIG_ROOT}/static-nodes.txt
+  tar -czf ${DEPLOY_ROOT} -C ${CONFIG_ROOT}
+  rm -rf ${CONFIG_ROOT}
   trap - ERR
 }
 
@@ -454,29 +277,9 @@ trap 'exit 1' ERR
 
 utils::ask_sudo
 case ${action} in
-  'prepare')
-    cmd="prepare ${@}"
-    utils::exec_cmd "${cmd}" 'Prepare hosts'
-    ;;
-  'generate-keys')
-    cmd="generate_and_funds_accounts ${@}"
-    utils::exec_cmd "${cmd}" 'Generate and funds accounts'
-    ;;
-  'configure-network')
-    cmd="configure_network ${@}"
-    utils::exec_cmd "${cmd}" 'Configure network'
-    ;;
-  'deploy-L1-contracts')
-    cmd="deploy_L1_contracts ${@}"
-    utils::exec_cmd "${cmd}" 'Deploy L1 contracts'
-    ;;
-  'generate-L2-configuration')
-    cmd="generate_L2_configuration ${@}"
-    utils::exec_cmd "${cmd}" 'Generate L2 configuration'
-    ;;
-  'initialize-nodes')
-    cmd="initialize_nodes ${@}"
-    utils::exec_cmd "${cmd}" 'Initialize nodes'
+  'generate')
+    cmd="generate ${@}"
+    utils::exec_cmd "${cmd}" 'Generate the configuration'
     ;;
   *)
     utils::err "Unknown action: ${action}"

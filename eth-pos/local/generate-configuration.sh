@@ -4,7 +4,7 @@
 # Project: EPFL, DCL, Performance and Security Evaluation of Layer 2 Blockchain
 #          Systems
 # Date: July 2023
-# Description: Generate configuration and setup the hosts
+# Description: Generate configuration
 #===============================================================================
 
 #===============================================================================

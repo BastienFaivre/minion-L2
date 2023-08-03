@@ -157,6 +157,26 @@ clone_and_build_OP_geth() {
   trap - ERR
 }
 
+#######################################
+# Build p2p tool
+# Globals:
+#   None
+# Arguments:
+#   None
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+build_p2p_tool() {
+  trap 'exit 1' ERR
+  cd L2/optimism/remote
+  go mod init p2p-tool
+  go mod tidy
+  go build -o bin/p2p-tool p2p-tool.go
+  trap - ERR
+}
+
 #===============================================================================
 # MAIN
 #===============================================================================
@@ -190,5 +210,7 @@ utils::exec_cmd 'initialize_directories' 'Initialize directories'
 utils::exec_cmd 'clone_and_build_OP_monorepo' 'Clone and build Optimism monorepo'
 
 utils::exec_cmd 'clone_and_build_OP_geth' 'Clone and build Optimism Geth'
+
+utils::exec_cmd 'build_p2p_tool' 'Build p2p tool'
 
 trap - ERR
