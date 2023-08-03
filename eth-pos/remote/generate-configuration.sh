@@ -4,7 +4,7 @@
 # Project: EPFL, DCL, Performance and Security Evaluation of Layer 2 Blockchain
 #          Systems
 # Date: July 2023
-# Description: Generate configuration and setup the host
+# Description: Generate configuration
 #===============================================================================
 
 #===============================================================================
@@ -33,7 +33,6 @@ usage() {
   echo 'Usage: $(basename ${0}) <action> [options...]'
   echo 'Actions:'
   echo '  generate <number of accounts> <nodes ip addresses...>'
-  echo '  setup'
 }
 
 #######################################
@@ -180,6 +179,8 @@ generate() {
         >> ${CONFIG_ROOT}/execution/config.toml
     fi
     openssl rand -hex 32 > ${dir}/jwt.txt
+    geth init --datadir ${dir} ${CONFIG_ROOT}/execution/genesis.json \
+      > /dev/null 2>&1
     i=$((i+1))
   done
   echo ']' >> ${CONFIG_ROOT}/execution/config.toml
@@ -235,29 +236,6 @@ generate() {
   trap - ERR
 }
 
-setup() {
-  trap 'exit 1' ERR
-  if ! utils::check_args_eq 0 $#; then
-    usage
-    exit 1
-  fi
-  setup_environment
-  if [ ! -f ${DEPLOY_ROOT}/config.tar.gz ]; then
-    utils::err 'Configuration archive not found. Please run generate first.'
-    trap - ERR
-    exit 1
-  fi
-  mkdir -p ${DEPLOY_ROOT}/config
-  tar -xzf ${DEPLOY_ROOT}/config.tar.gz -C ${DEPLOY_ROOT}/config
-  rm -rf ${DEPLOY_ROOT}/config.tar.gz
-  for dir in ${DEPLOY_ROOT}/config/execution/n*; do
-    test -d "${dir}" || continue
-    test -d "${dir}/geth" || continue
-    geth init --datadir ${dir} ${DEPLOY_ROOT}/config/execution/genesis.json
-  done
-  trap - ERR
-}
-
 #===============================================================================
 # MAIN
 #===============================================================================
@@ -275,10 +253,6 @@ case ${action} in
   'generate')
     cmd="generate $@"
     utils::exec_cmd "${cmd}" 'Generate the configuration'
-    ;;
-  'setup')
-    cmd="setup $@"
-    utils::exec_cmd "${cmd}" 'Setup the host'
     ;;
   *)
     utils::err "Unknown action ${action}"

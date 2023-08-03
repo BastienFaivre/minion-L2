@@ -86,13 +86,12 @@ send_configuration() {
   for remote_host in "${remote_hosts_list[@]}"; do
     (
       IFS=':' read -r host port <<< "${remote_host}"
-      ssh -p ${port} ${host} "rm -rf ${DEPLOY_ROOT}; mkdir -p ${DEPLOY_ROOT}"
+      ssh -p ${port} ${host} "rm -rf ${DEPLOY_ROOT}; mkdir -p ${DEPLOY_ROOT}/\
+config"
       mkdir -p ./tmp/config-n${i}
       mkdir -p ./tmp/config-n${i}/execution
       cp ./tmp/config/execution/config.toml \
         ./tmp/config-n${i}/execution/config.toml
-      cp ./tmp/config/execution/genesis.json \
-        ./tmp/config-n${i}/execution/genesis.json
       cp -r ./tmp/config/execution/n${i} ./tmp/config-n${i}/execution/n${i}
       mv ./tmp/config-n${i}/execution/n${i}/jwt.txt ./tmp/config-n${i}/jwt.txt
       mkdir -p ./tmp/config-n${i}/consensus
@@ -108,6 +107,9 @@ send_configuration() {
       scp -P ${port} ./tmp/config-n${i}.tar.gz \
         ${host}:${DEPLOY_ROOT}/config.tar.gz
       rm -rf ./tmp/config-n${i} ./tmp/config-n${i}.tar.gz
+      local cmd="tar -xzf ${DEPLOY_ROOT}/config.tar.gz -C \
+${DEPLOY_ROOT}/config; rm -rf ${DEPLOY_ROOT}/config.tar.gz"
+      ssh -p ${port} ${host} "${cmd}"
     ) &
     i=$((i + 1))
   done
@@ -157,9 +159,5 @@ utils::exec_cmd "${cmd}" 'Retrieve the configuration'
 
 cmd="send_configuration ${remote_hosts_list[@]}"
 utils::exec_cmd "${cmd}" 'Send the configuration'
-
-cmd="./eth-pos/remote/generate-configuration.sh setup"
-utils::exec_cmd_on_remote_hosts "${cmd}" 'Setup the hosts' \
-  "${remote_hosts_list[@]}"
 
 trap - ERR
