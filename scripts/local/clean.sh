@@ -55,7 +55,7 @@ remote_hosts_list=($(utils::create_remote_hosts_list ${remote_hosts_file}))
 trap 'exit 1' ERR
 
 cmd='sudo rm -rf *; sudo rm -rf /usr/local/go; sed -i "\|/usr/local/go|d" \
-~/.profile; rm -rf ~/.cargo; sed -i "\|\.cargo|d" ~/.bashrc; \
+~/.profile; rm -rf ~/.cargo; sed -i "\|\.cargo|d" ~/.profile; \
 rm -rf ~/.ethereum ~/.foundry ~/.local ~/.npm ~/.python_history ~/.rustup \
 ~/.svm ~/.vscode-server ~/wget-hsts; sed -i "\|eval \"\$(direnv hook bash)\"|d" \
 ~/.bashrc; sed -i "\|export PATH=\"\$PATH:/home/user/.foundry/bin\"|d" \

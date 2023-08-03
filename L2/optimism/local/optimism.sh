@@ -32,7 +32,7 @@ cd "$(dirname "${0}")"
 #   None
 #######################################
 usage() {
-  echo 'Usage: $(basename ${0}) <remote hosts file> start|stop|kill [options]'
+  echo "Usage: $(basename ${0}) <remote hosts file> start|stop|kill"
 }
 
 #######################################
@@ -49,27 +49,36 @@ usage() {
 #   None
 #######################################
 execute_with_delay() {
-  trap 'exit 1' ERR
   if ! utils::check_args_ge 2 $#; then
-    trap - ERR
     exit 1
   fi
   local cmd=$(echo "${1}" | tr '|' ' ')
   local remote_hosts_list=("${@:2}")
+  local array_of_pids=()
   for remote_host in "${remote_hosts_list[@]}"; do
     IFS=':' read -r host port <<< "${remote_host}"
-    ssh -p ${port} ${host} "${cmd}" &
+    (
+      ssh -p ${port} ${host} "${cmd}"
+      if [ "$?" -ne 0 ]; then
+        exit 1
+      fi
+    ) &
+    array_of_pids+=($!)
     sleep 1
   done
-  wait
-  trap - ERR
+  for pid in "${array_of_pids[@]}"; do
+    wait ${pid}
+    if [ "$?" -ne 0 ]; then
+      exit 1
+    fi
+  done
 }
 
 #===============================================================================
 # MAIN
 #===============================================================================
 
-if ! utils::check_args_eq 3 $#; then
+if ! utils::check_args_eq 2 $#; then
   usage
   exit 1
 fi
@@ -93,7 +102,7 @@ shift 2
 
 trap 'exit 1' ERR
 
-host_cmd="./L2/optimism/remote/optimism.sh|${action}|${@}"
+host_cmd="./L2/optimism/remote/optimism.sh|${action}"
 cmd="execute_with_delay ${host_cmd} ${remote_hosts_list[@]}"
 utils::exec_cmd "${cmd}" "${action} Optimism on remote hosts"
 

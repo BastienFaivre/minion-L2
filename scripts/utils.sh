@@ -266,7 +266,9 @@ utils::exec_cmd() {
   wait ${pid}
   if [ "$?" -ne 0 ]; then
     echo -ne "\r\033[0;31mFAIL\033[0m ${cmd_explanation}\n"
-    cat /tmp/log.txt
+    if [ -f /tmp/log.txt ]; then
+      cat /tmp/log.txt
+    fi
     rm -rf /tmp/log.txt
     trap - EXIT
     return 1
@@ -380,7 +382,9 @@ utils::exec_cmd_on_remote_hosts() {
     if [ "$?" -ne 0 ]; then
       IFS=':' read -r host port <<< "${remote_hosts_list[${index}]}"
       echo -e "\033[0;31mFAIL\033[0m ${cmd_explanation} on ${host}:${port}"
-      cat /tmp/log_${host}_${port}.txt
+      if [ -f "/tmp/log_${host}_${port}.txt" ]; then
+        cat /tmp/log_${host}_${port}.txt
+      fi
       fail=true
     fi
     index=$((index + 1))

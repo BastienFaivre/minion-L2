@@ -30,7 +30,7 @@
 #   None
 #######################################
 usage() {
-  echo 'Usage: $(basename ${0}) start|stop|kill <L1 node url>'
+  echo 'Usage: $(basename ${0}) start|stop|kill'
 }
 
 #######################################
@@ -365,7 +365,7 @@ nkill() {
 # MAIN
 #===============================================================================
 
-if ! utils::check_args_ge 1 $#; then
+if ! utils::check_args_eq 1 $#; then
   usage
   exit 1
 fi
@@ -377,7 +377,7 @@ utils::ask_sudo
 setup_environment
 case ${action} in
   start)
-    cmd="start ${@}"
+    cmd="start"
     utils::exec_cmd "${cmd}" 'Start Optimism nodes'
     ;;
   stop)

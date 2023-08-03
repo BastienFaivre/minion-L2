@@ -31,25 +31,30 @@ cd "$(dirname "${0}")"
 #   None
 #######################################
 usage() {
-  echo "Usage: $(basename ${0}) [options...]"
+  echo "Usage: $(basename ${0}) <L2> [options...]"
+  echo 'L2:'
+  echo '  optimism            Optimism (https://www.optimism.io/)'
   echo 'Options:'
   echo '  -h, --help          display this message and exit'
-  echo '  -f, --hosts-file    remote hosts file'
+  echo '  -f, --hosts-file    (required) remote hosts file'
   echo '    File format: one host per line, with the following format:'
   echo '      <user>@<ip>:<port>'
   echo '    Example:'
   echo '      root@example.com:1234'
   echo '    Please ALWAYS SPECIFY THE PORT, even if it is the default SSH port'
-  echo '  -a, --num-accounts  number of accounts (required for step 3)'
+  echo '  -a, --num-accounts  (required for step 3) number of founded accounts'\
+' on L1'
   echo '  -s, --steps         steps to do (default: all)'
   echo '    Format: <step>[,<step>]...'
   echo '    Steps:'
   echo '      1: export scripts to remote hosts'
-  echo '      2: install and build Ethereum PoS on remote hosts (this may take\'
-' few minutes)'
-  echo '      3: generate the configuration for the Ethereum PoS network'
-  echo '      4: start Ethereum PoS network'
-  echo '  -k, --kill          kill the Ethereum PoS network'
+  echo '      2: install and build L1 and L2 on remote hosts (this may take a '\
+'long time)'
+  echo '      3: generate the configuration for the L1 network'
+  echo '      4: start the L1 network'
+  echo '      5: generate the configuration for the L2 network'
+  echo '      6: start the L2 network'
+  echo '  -k, --kill          kill the networks'
   echo '  -c, --clean         clean the remote hosts'
 }
 
@@ -91,6 +96,19 @@ welcome() {
 
 welcome
 
+l2=${1}
+if [[ "${l2}" != 'optimism' ]]; then
+  if [[ $# -eq 0 ]]; then
+    utils::err 'Missing L2'
+  else
+    utils::err "Unknown L2: ${l2}"
+  fi
+  echo ''
+  usage
+  exit 1
+fi
+shift
+
 remote_hosts_file=''
 steps=''
 kill=false
@@ -124,18 +142,12 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       utils::err "Unknown option: ${1}"
+      echo ''
       usage
       exit 1
       ;;
   esac
 done
-
-if [[ -z "${remote_hosts_file}" ]] && [[ -z "${num_accounts}" ]] && \
-  [[ "${steps}" == '' ]] && [[ "${kill}" == false ]] && \
-  [[ "${clean}" == false ]]; then
-  usage
-  exit 0
-fi
 
 if ! utils::check_required_arg 'Remote hosts file' "${remote_hosts_file}"; then
   echo ''
@@ -144,16 +156,27 @@ if ! utils::check_required_arg 'Remote hosts file' "${remote_hosts_file}"; then
 fi
 
 if [[ "${kill}" == true ]]; then
+  cmd="./L2/${l2}/local/${l2}.sh ${remote_hosts_file} kill"
+  utils::exec_cmd "${cmd}" "Kill ${l2} network"
   cmd="./eth-pos/local/eth-pos.sh ${remote_hosts_file} kill"
-  utils::exec_cmd "${cmd}" 'Kill Ethereum PoS network'
+  utils::exec_cmd "${cmd}" "Kill Ethereum PoS network"
   echo ''
   echo 'Task completed successfully!'
   exit 0
 fi
 
+if [[ "${steps}" == '' ]]; then
+  steps='1,2,3,4,5,6'
+fi
+
+if [[ "${steps}" == *'6'* ]]; then
+  cmd="./L2/${l2}/local/${l2}.sh ${remote_hosts_file} kill"
+  utils::exec_cmd "${cmd}" "Kill ${l2} network"
+fi
+
 if [[ "${steps}" == *'4'* ]]; then
   cmd="./eth-pos/local/eth-pos.sh ${remote_hosts_file} kill"
-  utils::exec_cmd "${cmd}" 'Kill Ethereum PoS network'
+  utils::exec_cmd "${cmd}" "Kill Ethereum PoS network"
 fi
 
 if [[ "${clean}" == true ]]; then
@@ -173,23 +196,27 @@ fi
 
 trap 'exit 1' ERR
 
-if [[ "${steps}" == '' ]] || [[ "${steps}" == *'1'* ]]; then
+if [[ "${steps}" == *'1'* ]]; then
   cmd="./scripts/local/export.sh ${remote_hosts_file}"
   utils::exec_cmd "${cmd}" 'Export scripts to remote hosts'
 else
   utils::skip_cmd 'Export scripts to remote hosts'
 fi
 
-if [[ "${steps}" == '' ]] || [[ "${steps}" == *'2'* ]]; then
+if [[ "${steps}" == *'2'* ]]; then
   cmd="./eth-pos/local/install-eth-pos.sh ${remote_hosts_file}"
   utils::exec_cmd "${cmd}" 'Install Ethereum PoS on remote hosts (this may '\
-'take few minutes)'
+'take a long time)'
+  cmd="./L2/${l2}/local/install-${l2}.sh ${remote_hosts_file}"
+  utils::exec_cmd "${cmd}" "Install ${l2} on remote hosts (this may take a "\
+'long time)'
 else
-  utils::skip_cmd 'Install Ethereum PoS on remote hosts (this may take few '\
-'minutes)'
+  utils::skip_cmd 'Install Ethereum PoS on remote hosts (this may take a long '\
+'time)'
+  utils::skip_cmd "Install ${l2} on remote hosts (this may take a long time)"
 fi
 
-if [[ "${steps}" == '' ]] || [[ "${steps}" == *'3'* ]]; then
+if [[ "${steps}" == *'3'* ]]; then
   cmd="./eth-pos/local/generate-configuration.sh ${remote_hosts_file} "\
 "${num_accounts}"
   utils::exec_cmd "${cmd}" 'Generate the configuration for the Ethereum PoS '\
@@ -198,11 +225,25 @@ else
   utils::skip_cmd 'Generate the configuration for the Ethereum PoS network'
 fi
 
-if [[ "${steps}" == '' ]] || [[ "${steps}" == *'4'* ]]; then
+if [[ "${steps}" == *'4'* ]]; then
   cmd="./eth-pos/local/eth-pos.sh ${remote_hosts_file} start"
   utils::exec_cmd "${cmd}" 'Start Ethereum PoS network'
 else
   utils::skip_cmd 'Start Ethereum PoS network'
+fi
+
+if [[ "${steps}" == *'5'* ]]; then
+  cmd="./L2/${l2}/local/generate-configuration.sh ${remote_hosts_file}"
+  utils::exec_cmd "${cmd}" "Generate the configuration for the ${l2} network"
+else
+  utils::skip_cmd "Generate the configuration for the ${l2} network"
+fi
+
+if [[ "${steps}" == *'6'* ]]; then
+  cmd="./L2/${l2}/local/${l2}.sh ${remote_hosts_file} start"
+  utils::exec_cmd "${cmd}" "Start ${l2} network"
+else
+  utils::skip_cmd "Start ${l2} network"
 fi
 
 echo ''
