@@ -129,8 +129,9 @@ clone_and_build_OP_monorepo() {
   git clone ${OP_MONOREPO_URL} ${INSTALL_ROOT}/optimism
   cd ${INSTALL_ROOT}/optimism
   pnpm install
+  rm -rf ${HOME}/.foundry
   curl -L https://foundry.paradigm.xyz | bash
-  export PATH="$PATH:/home/user/.foundry/bin"
+  export PATH="${PATH}:${HOME}/.foundry/bin"
   pnpm update:foundry
   make op-node op-batcher op-proposer
   pnpm build
@@ -171,6 +172,7 @@ clone_and_build_OP_geth() {
 build_p2p_tool() {
   trap 'exit 1' ERR
   cd L2/optimism/remote
+  rm -rf go.mod go.sum bin/p2p-tool
   go mod init p2p-tool
   go mod tidy
   go build -o bin/p2p-tool p2p-tool.go
