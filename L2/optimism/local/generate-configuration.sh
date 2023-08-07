@@ -93,8 +93,9 @@ trap 'exit 1' ERR
 #   remote_hosts_ip_list+=($(utils::extract_ip_address ${remote_host}))
 # done
 # TODO: remove
-remote_hosts_ip_list=('192.168.201.7' '192.168.201.8' '192.168.201.9' \
-'192.168.201.10' '192.168.201.11')
+remote_hosts_ip_list=('192.168.201.2' '192.168.201.3' '192.168.201.4' \
+'192.168.201.5' '192.168.201.6' '192.168.201.7' '192.168.201.8' '192.168.201.9'\
+ '192.168.201.10' '192.168.201.11')
 
 first_remote_host=${remote_hosts_list[0]}
 

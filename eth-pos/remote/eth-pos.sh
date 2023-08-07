@@ -92,6 +92,23 @@ setup_environment() {
 }
 
 #######################################
+# Get the current finalized block
+# Globals:
+#   None
+# Arguments:
+#   None
+# Outputs:
+#   Writes the curl response to stdout
+# Returns:
+#   None
+#######################################
+curlFinalizedBlock() {
+  curl -X POST -H "Content-Type: application/json" --data \
+  '{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["finalized", false],"id":1}' \
+  http://localhost:8545
+}
+
+#######################################
 # Start the Ethereum PoS nodes
 # Globals:
 #   None
@@ -164,6 +181,12 @@ start() {
   echo ${pid} >> ${DEPLOY_ROOT}/config/pids
   # Wait for the node to start
   sleep 5
+  # Wait for the first finalized block
+  local response=$(curlFinalizedBlock)
+  while echo ${response} | grep -i 'error'; do
+    sleep 5
+    response=$(curlFinalizedBlock)
+  done
   trap - ERR
 }
 
