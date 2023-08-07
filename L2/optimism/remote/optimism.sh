@@ -46,7 +46,7 @@ usage() {
 #######################################
 setup_environment() {
   trap 'exit 1' ERR
-  if [ ! -d ${INSTALL_FOLDER}/optimism ] || [ ! -d ${INSTALL_FOLDER}/op-geth ];
+  if [ ! -d ${INSTALL_ROOT}/optimism ] || [ ! -d ${INSTALL_ROOT}/op-geth ];
   then
     utils::err "function ${FUNCNAME[0]}(): Optimism is not installed. Please "\
 'run install-optimism.sh first.'
@@ -73,35 +73,43 @@ setup_environment() {
     trap - ERR
     exit 1
   fi
-  export PATH=${HOME}/${INSTALL_FOLDER}/op-geth/build/bin:$PATH
+  export PATH=${HOME}/${INSTALL_ROOT}/op-geth/build/bin:$PATH
   if ! command -v geth &> /dev/null
   then
     utils::err 'geth command not found in '\
-"${HOME}/${INSTALL_FOLDER}/op-geth/build/bin"
+"${HOME}/${INSTALL_ROOT}/op-geth/build/bin"
     trap - ERR
     exit 1
   fi
-  export PATH=${HOME}/${INSTALL_FOLDER}/optimism/op-node/bin:$PATH
+  export PATH=${HOME}/${INSTALL_ROOT}/optimism/op-node/bin:$PATH
   if ! command -v op-node &> /dev/null
   then
     utils::err 'op-node command not found in '\
-"${HOME}/${INSTALL_FOLDER}/optimism/op-node/bin"
+"${HOME}/${INSTALL_ROOT}/optimism/op-node/bin"
     trap - ERR
     exit 1
   fi
-  export PATH=${HOME}/${INSTALL_FOLDER}/optimism/op-batcher/bin:$PATH
+  export PATH=${HOME}/${INSTALL_ROOT}/optimism/op-batcher/bin:$PATH
   if ! command -v op-batcher &> /dev/null
   then
     utils::err 'op-batcher command not found in '\
-"${HOME}/${INSTALL_FOLDER}/optimism/op-batcher/bin"
+"${HOME}/${INSTALL_ROOT}/optimism/op-batcher/bin"
     trap - ERR
     exit 1
   fi
-  export PATH=${HOME}/${INSTALL_FOLDER}/optimism/op-proposer/bin:$PATH
+  export PATH=${HOME}/${INSTALL_ROOT}/optimism/op-proposer/bin:$PATH
   if ! command -v op-proposer &> /dev/null
   then
     utils::err 'op-proposer command not found in '\
-"${HOME}/${INSTALL_FOLDER}/optimism/op-proposer/bin"
+"${HOME}/${INSTALL_ROOT}/optimism/op-proposer/bin"
+    trap - ERR
+    exit 1
+  fi
+  export PATH=${HOME}/L2/optimism/remote/bin:$PATH
+  if ! command -v p2p-tool &> /dev/null
+  then
+    utils::err 'p2p-tool command not found in '\
+"${HOME}/L2/optimism/remote/bin"
     trap - ERR
     exit 1
   fi

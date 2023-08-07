@@ -155,6 +155,15 @@ if ! utils::check_required_arg 'Remote hosts file' "${remote_hosts_file}"; then
   exit 1
 fi
 
+trap 'exit 1' ERR
+
+if [[ "${steps}" == *'1'* ]]; then
+  cmd="./scripts/local/export.sh ${remote_hosts_file}"
+  utils::exec_cmd "${cmd}" 'Export scripts to remote hosts'
+else
+  utils::skip_cmd 'Export scripts to remote hosts'
+fi
+
 if [[ "${kill}" == true ]]; then
   cmd="./L2/${l2}/local/${l2}.sh ${remote_hosts_file} kill"
   utils::exec_cmd "${cmd}" "Kill ${l2} network"
@@ -196,19 +205,10 @@ if [[ "${steps}" == *'3'* ]] && \
   exit 1
 fi
 
-trap 'exit 1' ERR
-
-if [[ "${steps}" == *'1'* ]]; then
-  cmd="./scripts/local/export.sh ${remote_hosts_file}"
-  utils::exec_cmd "${cmd}" 'Export scripts to remote hosts'
-else
-  utils::skip_cmd 'Export scripts to remote hosts'
-fi
-
 if [[ "${steps}" == *'2'* ]]; then
-  cmd="./eth-pos/local/install-eth-pos.sh ${remote_hosts_file}"
-  utils::exec_cmd "${cmd}" 'Install Ethereum PoS on remote hosts (this may '\
-'take a long time)'
+#   cmd="./eth-pos/local/install-eth-pos.sh ${remote_hosts_file}"
+#   utils::exec_cmd "${cmd}" 'Install Ethereum PoS on remote hosts (this may '\
+# 'take a long time)'
   cmd="./L2/${l2}/local/install-${l2}.sh ${remote_hosts_file}"
   utils::exec_cmd "${cmd}" "Install ${l2} on remote hosts (this may take a "\
 'long time)'

@@ -152,28 +152,28 @@ generate() {
   mkdir -p ${ACCOUNTS_FOLDER}
   # Admin
   local output=$(cast wallet new)
-  local address=$(echo "${output} | grep 'Address:' | awk '{print $2}'")
+  local address=$(echo "${output}" | grep 'Address:' | awk '{print $2}')
   local private_key=$(echo "${output}" | grep 'Private key:' | awk '{print $3}')
   echo ${address}:${private_key} > ${ACCOUNTS_FOLDER}/account_admin
   ./L2/optimism/remote/send.py ${l1_node_url} ${CHAIN_ID} ${l1_master_sk} \
     ${address} ${ADMIN_BALANCE}
   # Batcher
   output=$(cast wallet new)
-  address=$(echo "${output} | grep 'Address:' | awk '{print $2}'")
+  address=$(echo "${output}" | grep 'Address:' | awk '{print $2}')
   private_key=$(echo "${output}" | grep 'Private key:' | awk '{print $3}')
   echo ${address}:${private_key} > ${ACCOUNTS_FOLDER}/account_batcher
   ./L2/optimism/remote/send.py ${l1_node_url} ${CHAIN_ID} ${l1_master_sk} \
     ${address} ${BATCHER_BALANCE}
   # Proposer
   output=$(cast wallet new)
-  address=$(echo "${output} | grep 'Address:' | awk '{print $2}'")
+  address=$(echo "${output}" | grep 'Address:' | awk '{print $2}')
   private_key=$(echo "${output}" | grep 'Private key:' | awk '{print $3}')
   echo ${address}:${private_key} > ${ACCOUNTS_FOLDER}/account_proposer
   ./L2/optimism/remote/send.py ${l1_node_url} ${CHAIN_ID} ${l1_master_sk} \
     ${address} ${PROPOSER_BALANCE}
   # Sequencer
   output=$(cast wallet new)
-  address=$(echo "${output} | grep 'Address:' | awk '{print $2}'")
+  address=$(echo "${output}" | grep 'Address:' | awk '{print $2}')
   private_key=$(echo "${output}" | grep 'Private key:' | awk '{print $3}')
   echo ${address}:${private_key} > ${ACCOUNTS_FOLDER}/account_sequencer
   echo http://${nodes_ip_addresses[0]}:8545 > ${CONFIG_ROOT}/sequencer-url
@@ -209,33 +209,49 @@ generate() {
     s/TIMESTAMP/${timestamp}/g; \
     s/\"l1ChainID\": 5,/\"l1ChainID\": ${CHAIN_ID},/g" \
     ${DIR}/deploy-config/getting-started.json
+  # due to https://github.com/ethereum-optimism/optimism/commit/069f9c22775805c851919a594de817c8843182b6
+  jq '. + {"l1BlockTime": 3}' ${DIR}/deploy-config/getting-started.json \
+    > ${DIR}/deploy-config/getting-started.json.tmp
+  mv ${DIR}/deploy-config/getting-started.json.tmp \
+    ${DIR}/deploy-config/getting-started.json
   # Deploy L1 contracts
-  private_key=$(cat ${CONFIG_ROOT}/accounts/account_admin \
-    | cut -d':' -f2)
-  cd ${INSTALL_ROOT}/optimism/packages/contracts-bedrock
-  rm -rf L2OutputOracleProxy_address L1StandardBridgeProxy_address
-  direnv allow . && eval "$(direnv export bash)"
-  rm -rf deployments/getting-started
-  mkdir -p deployments/getting-started
-  forge script scripts/Deploy.s.sol:Deploy --private-key ${private_key} \
-    --broadcast --rpc-url ${l1_node_url}
-  forge script scripts/Deploy.s.sol:Deploy --sig 'sync()' --private-key \
-    ${private_key} --broadcast --rpc-url ${l1_node_url}
-  jq -r .address deployments/getting-started/L2OutputOracleProxy.json \
-    > L2OutputOracleProxy_address
-  jq -r .address deployments/getting-started/L1StandardBridgeProxy.json \
-    > L1StandardBridgeProxy_address
+  (
+    private_key=$(cat ${CONFIG_ROOT}/accounts/account_admin \
+      | cut -d':' -f2)
+    cd ${INSTALL_ROOT}/optimism/packages/contracts-bedrock
+    rm -rf L2OutputOracleProxy_address L1StandardBridgeProxy_address
+    direnv allow . && eval "$(direnv export bash)"
+    rm -rf deployments/getting-started
+    mkdir -p deployments/getting-started
+    forge script scripts/Deploy.s.sol:Deploy --private-key ${private_key} \
+      --broadcast --rpc-url ${l1_node_url}
+    forge script scripts/Deploy.s.sol:Deploy --sig 'sync()' --private-key \
+      ${private_key} --broadcast --rpc-url ${l1_node_url}
+    jq -r .address deployments/getting-started/L2OutputOracleProxy.json \
+      > L2OutputOracleProxy_address
+    jq -r .address deployments/getting-started/L1StandardBridgeProxy.json \
+      > L1StandardBridgeProxy_address
+    cp L2OutputOracleProxy_address \
+      ${HOME}/${CONFIG_ROOT}/L2OutputOracleProxy_address
+    cp L1StandardBridgeProxy_address \
+      ${HOME}/${CONFIG_ROOT}/L1StandardBridgeProxy_address
+  )
   # Generate L2 configuration
-  cd ${INSTALL_ROOT}/optimism/op-node
-  rm -rf genesis.json rollup.json
-  go run cmd/main.go genesis l2 \
-    --deploy-config \
-    ../packages/contracts-bedrock/deploy-config/getting-started.json \
-    --deployment-dir \
-    ../packages/contracts-bedrock/deployments/getting-started/ \
-    --outfile.l2 genesis.json \
-    --outfile.rollup rollup.json \
-    --l1-rpc ${l1_node_url}
+  (
+    cd ${INSTALL_ROOT}/optimism/op-node
+    rm -rf genesis.json rollup.json
+    go run cmd/main.go genesis l2 \
+      --deploy-config \
+      ../packages/contracts-bedrock/deploy-config/getting-started.json \
+      --deployment-dir \
+      ../packages/contracts-bedrock/deployments/getting-started/ \
+      --outfile.l2 genesis.json \
+      --outfile.rollup rollup.json \
+      --l1-rpc ${l1_node_url} \
+      > /dev/null 2>&1
+    cp genesis.json ${HOME}/${CONFIG_ROOT}/genesis.json
+    cp rollup.json ${HOME}/${CONFIG_ROOT}/rollup.json
+  )
   # Create nodes directories with p2p keys
   local dir
   local i=0
@@ -248,7 +264,7 @@ generate() {
       >> ${CONFIG_ROOT}/static-nodes.txt
     if [[ ${dir} == *n0 ]]; then
       echo 'pwd' > ${dir}/password
-      cat ${DEPLOY_ROOT}/accounts/account_sequencer | cut -d':' -f2 \
+      cat ${CONFIG_ROOT}/accounts/account_sequencer | cut -d':' -f2 \
         | sed 's/0x//' > ${dir}/block-signer-key
       geth account import --datadir ${dir} --password ${dir}/password \
         ${dir}/block-signer-key
@@ -258,7 +274,7 @@ generate() {
     i=$((i+1))
   done
   sed -i 's/.$//' ${CONFIG_ROOT}/static-nodes.txt
-  tar -czf ${DEPLOY_ROOT} -C ${CONFIG_ROOT}
+  tar -czf ${DEPLOY_ROOT}/config.tar.gz -C ${CONFIG_ROOT} .
   rm -rf ${CONFIG_ROOT}
   trap - ERR
 }
