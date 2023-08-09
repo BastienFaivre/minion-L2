@@ -66,6 +66,52 @@ retrieve_configuration() {
   trap - ERR
 }
 
+#######################################
+# Send the configuration to the remote hosts
+# Globals:
+#   None
+# Arguments:
+#   $@: remote hosts list
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+send_configuration() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_ge 1 $#; then
+    trap - ERR
+    exit 1
+  fi
+  local remote_hosts_list=(${@})
+  local i=0
+  for remote_host in "${remote_hosts_list[@]}"; do
+    (
+      IFS=':' read -r host port <<< "${remote_host}"
+      ssh -p ${port} ${host} "rm -rf ${DEPLOY_ROOT}; mkdir -p ${DEPLOY_ROOT}/\
+config"
+      mkdir -p ./tmp/config-n${i}
+      cp ./tmp/config/static-nodes.txt ./tmp/config-n${i}/static-nodes.txt
+      cp ./tmp/config/sequencer-url ./tmp/config-n${i}/sequencer-url
+      cp -r ./tmp/config/n${i} ./tmp/config-n${i}/n${i}
+      if [ ${i} -eq 0 ]; then
+        cp ./tmp/config/L2OutputOracleProxy_address \
+          ./tmp/config-n${i}/L2OutputOracleProxy_address
+      fi
+      tar -czf ./tmp/config-n${i}.tar.gz -C ./tmp/config-n${i} .
+      scp -P ${port} ./tmp/config-n${i}.tar.gz ${host}:${DEPLOY_ROOT}/\
+config.tar.gz
+      rm -rf ./tmp/config-n${i} ./tmp/config-n${i}.tar.gz
+      local cmd="tar -xzf ${DEPLOY_ROOT}/config.tar.gz -C ${DEPLOY_ROOT}/config\
+; rm -rf ${DEPLOY_ROOT}/config.tar.gz"
+      ssh -p ${port} ${host} "${cmd}"
+    ) &
+    i=$((i + 1))
+  done
+  wait
+  trap - ERR
+}
+
 #===============================================================================
 # MAIN
 #===============================================================================
@@ -99,14 +145,15 @@ remote_hosts_ip_list=('192.168.201.2' '192.168.201.3' '192.168.201.4' \
 
 first_remote_host=${remote_hosts_list[0]}
 
-cmd="./L2/optimism/remote/generate-configuration.sh generate "\
-"${l1_master_account_private_key} ${remote_hosts_ip_list[@]}"
-utils::exec_cmd_on_remote_hosts "${cmd}" 'Generate the configuration' \
-  "${first_remote_host}"
+# cmd="./L2/optimism/remote/generate-configuration.sh generate "\
+# "${l1_master_account_private_key} ${remote_hosts_ip_list[@]}"
+# utils::exec_cmd_on_remote_hosts "${cmd}" 'Generate the configuration' \
+#   "${first_remote_host}"
 
-cmd="retrieve_configuration ${first_remote_host}"
-utils::exec_cmd "${cmd}" 'Retrieve the configuration'
+# cmd="retrieve_configuration ${first_remote_host}"
+# utils::exec_cmd "${cmd}" 'Retrieve the configuration'
 
-# TODO send configuration
+cmd="send_configuration ${remote_hosts_list[@]}"
+utils::exec_cmd "${cmd}" 'Send the configuration'
 
 trap - ERR
