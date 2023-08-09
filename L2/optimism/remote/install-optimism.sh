@@ -154,7 +154,7 @@ clone_and_build_OP_geth() {
   mkdir -p ${INSTALL_ROOT}/op-geth
   git clone ${OP_GETH_URL} ${INSTALL_ROOT}/op-geth
   cd ${INSTALL_ROOT}/op-geth
-  make geth
+  make all
   trap - ERR
 }
 

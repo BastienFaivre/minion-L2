@@ -91,10 +91,12 @@ send_configuration() {
       ssh -p ${port} ${host} "rm -rf ${DEPLOY_ROOT}; mkdir -p ${DEPLOY_ROOT}/\
 config"
       mkdir -p ./tmp/config-n${i}
-      cp ./tmp/config/static-nodes.txt ./tmp/config-n${i}/static-nodes.txt
+      cp ./tmp/config/config.toml ./tmp/config-n${i}/config.toml
       cp ./tmp/config/sequencer-url ./tmp/config-n${i}/sequencer-url
+      cp ./tmp/config/rollup.json ./tmp/config-n${i}/rollup.json
       cp -r ./tmp/config/n${i} ./tmp/config-n${i}/n${i}
       if [ ${i} -eq 0 ]; then
+        cp -r ./tmp/config/accounts ./tmp/config-n${i}/accounts
         cp ./tmp/config/L2OutputOracleProxy_address \
           ./tmp/config-n${i}/L2OutputOracleProxy_address
       fi
@@ -145,13 +147,13 @@ remote_hosts_ip_list=('192.168.201.2' '192.168.201.3' '192.168.201.4' \
 
 first_remote_host=${remote_hosts_list[0]}
 
-# cmd="./L2/optimism/remote/generate-configuration.sh generate "\
-# "${l1_master_account_private_key} ${remote_hosts_ip_list[@]}"
-# utils::exec_cmd_on_remote_hosts "${cmd}" 'Generate the configuration' \
-#   "${first_remote_host}"
+cmd="./L2/optimism/remote/generate-configuration.sh generate "\
+"${l1_master_account_private_key} ${remote_hosts_ip_list[@]}"
+utils::exec_cmd_on_remote_hosts "${cmd}" 'Generate the configuration' \
+  "${first_remote_host}"
 
-# cmd="retrieve_configuration ${first_remote_host}"
-# utils::exec_cmd "${cmd}" 'Retrieve the configuration'
+cmd="retrieve_configuration ${first_remote_host}"
+utils::exec_cmd "${cmd}" 'Retrieve the configuration'
 
 cmd="send_configuration ${remote_hosts_list[@]}"
 utils::exec_cmd "${cmd}" 'Send the configuration'

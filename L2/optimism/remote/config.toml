@@ -1,19 +1,21 @@
 [Eth]
+NetworkId = 42069
 SyncMode = "full"
 
 [Node]
+InsecureUnlockAllowed = true
 HTTPHost = "0.0.0.0"
-HTTPPort = 8545
+HTTPPort = 8547
 HTTPCors = ["*"]
 HTTPModules = ["admin", "eth", "debug", "net", "txpool", "web3"]
 AuthAddr = "0.0.0.0"
-AuthPort = 8551
+AuthPort = 8552
 WSHost = "0.0.0.0"
-WSPort = 8546
+WSPort = 8548
 WSOrigins = ["*"]
 WSModules = ["admin", "eth", "debug", "net", "txpool", "web3"]
 
 [Node.P2P]
 NoDiscovery = true
-ListenAddr = ":30303"
-DiscAddr = ":30303"
+ListenAddr = ":30305"
+DiscAddr = ":30305"

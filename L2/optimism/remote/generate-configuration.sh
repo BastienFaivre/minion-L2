@@ -55,7 +55,7 @@ setup_environment() {
     trap - ERR
     exit 1
   fi
-  export PATH=/home/user/.foundry/bin/:$PATH
+  export PATH=${PATH}:${HOME}/.foundry/bin/
   if ! command -v cast &> /dev/null
   then
     utils::err 'Cast command not found in /home/user/.foundry/bin/'
@@ -79,6 +79,13 @@ setup_environment() {
   if ! command -v geth &> /dev/null
   then
     utils::err 'geth command not found in '\
+"${HOME}/${INSTALL_ROOT}/op-geth/build/bin"
+    trap - ERR
+    exit 1
+  fi
+  if ! command -v bootnode &> /dev/null
+  then
+    utils::err 'bootnode command not found in '\
 "${HOME}/${INSTALL_ROOT}/op-geth/build/bin"
     trap - ERR
     exit 1
@@ -224,9 +231,9 @@ generate() {
     rm -rf deployments/getting-started
     mkdir -p deployments/getting-started
     forge script scripts/Deploy.s.sol:Deploy --private-key ${private_key} \
-      --broadcast --rpc-url ${l1_node_url}
+      --broadcast --rpc-url ${l1_node_url} > /dev/null 2>&1
     forge script scripts/Deploy.s.sol:Deploy --sig 'sync()' --private-key \
-      ${private_key} --broadcast --rpc-url ${l1_node_url}
+      ${private_key} --broadcast --rpc-url ${l1_node_url} > /dev/null 2>&1
     jq -r .address deployments/getting-started/L2OutputOracleProxy.json \
       > L2OutputOracleProxy_address
     jq -r .address deployments/getting-started/L1StandardBridgeProxy.json \
@@ -253,11 +260,22 @@ generate() {
     cp rollup.json ${HOME}/${CONFIG_ROOT}/rollup.json
   )
   # Create nodes directories with p2p keys
+  cp L2/optimism/remote/config.toml ${CONFIG_ROOT}/config.toml
+  echo 'StaticNodes = [' >> ${CONFIG_ROOT}/config.toml
   local dir
   local i=0
   for ip in ${nodes_ip_addresses[@]}; do
     dir=${CONFIG_ROOT}/n${i}
-    mkdir -p ${dir}
+    mkdir -p ${dir}/geth
+    bootnode --genkey ${dir}/geth/nodekey
+    nodekey=$(bootnode --nodekey ${dir}/geth/nodekey --writeaddress)
+    if [ ${i} -eq $((${#nodes_ip_addresses[@]}-1)) ]; then
+      echo -e "\t\"enode://${nodekey}@${ip}:${GETH_PORT}\"" \
+        >> ${CONFIG_ROOT}/config.toml
+    else
+      echo -e "\t\"enode://${nodekey}@${ip}:${GETH_PORT}\"," \
+        >> ${CONFIG_ROOT}/config.toml
+    fi
     p2p-tool --privKeyPath ${dir}/opnode_p2p_priv.txt --peerIDPath \
       ${dir}/opnode_peer_id.txt
     echo /ip4/${ip}/tcp/9222/p2p/$(cat ${dir}/opnode_peer_id.txt) | tr '\n' ','\
@@ -273,7 +291,21 @@ generate() {
     geth init --datadir ${dir} ${CONFIG_ROOT}/genesis.json > /dev/null 2>&1
     i=$((i+1))
   done
+  echo ']' >> ${CONFIG_ROOT}/config.toml
   sed -i 's/.$//' ${CONFIG_ROOT}/static-nodes.txt
+  i=0
+  for ip in ${nodes_ip_addresses[@]}; do
+    dir=${CONFIG_ROOT}/n${i}
+    cp ${CONFIG_ROOT}/static-nodes.txt ${dir}/static-nodes.txt
+    local peerid=$(cat ${dir}/opnode_peer_id.txt)
+    local static_nodes=$(cat ${dir}/static-nodes.txt | \
+      sed -e "s,/ip4/${ip}/tcp/${P2P_LISTEN_PORT}/p2p/${peerid}.*$,," \
+        -e "s/^,//" \
+        -e "s/,$//")
+    echo ${static_nodes} > ${dir}/static-nodes.txt
+    i=$((i+1))
+  done
+  # Create archive
   tar -czf ${DEPLOY_ROOT}/config.tar.gz -C ${CONFIG_ROOT} .
   rm -rf ${CONFIG_ROOT}
   trap - ERR

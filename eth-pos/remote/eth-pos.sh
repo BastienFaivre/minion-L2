@@ -104,8 +104,8 @@ setup_environment() {
 #######################################
 curlFinalizedBlock() {
   curl -X POST -H "Content-Type: application/json" --data \
-  '{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["finalized", false],"id":1}' \
-  http://localhost:8545
+    '{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["finalized", false],"id":1}' \
+    http://localhost:8545
 }
 
 #######################################
@@ -121,31 +121,30 @@ curlFinalizedBlock() {
 #######################################
 start() {
   trap 'exit 1' ERR
-  if [ ! -d ${DEPLOY_ROOT} ]; then
+  if [ ! -d ${CONFIG_ROOT} ]; then
     utils::err "function ${FUNCNAME[0]}(): No configuration found. Please run "\
 'generate-configuration.sh first.'
     trap - ERR
     exit 1
   fi
   # Start execution layer
-  geth --datadir ${DEPLOY_ROOT}/config/execution/n* \
-    --config ${DEPLOY_ROOT}/config/execution/config.toml \
+  geth \
+    --datadir ${CONFIG_ROOT}/execution/n* \
+    --config ${CONFIG_ROOT}/execution/config.toml \
     --networkid ${CHAIN_ID} \
-    --authrpc.jwtsecret ${DEPLOY_ROOT}/config/jwt.txt \
-    > ${DEPLOY_ROOT}/config/execution/out.log 2>&1 &
-  local pid=$!
-  echo ${pid} > ${DEPLOY_ROOT}/config/pids
+    --authrpc.jwtsecret ${CONFIG_ROOT}/jwt.txt \
+    > ${CONFIG_ROOT}/execution/out.log 2>&1 &
+  echo $! > ${DEPLOY_ROOT}/pids
   # Start consensus layer bootnode (only on a single host)
-  if [ -d ${DEPLOY_ROOT}/config/consensus/n0 ]; then
+  if [ -d ${CONFIG_ROOT}/consensus/n0 ]; then
     lighthouse boot_node \
       --disable-packet-filter \
       --listen-address 0.0.0.0 \
-      --network-dir ${DEPLOY_ROOT}/config/consensus/bootnode \
+      --network-dir ${CONFIG_ROOT}/consensus/bootnode \
       --port ${BOOTNODE_PORT} \
-      --testnet-dir ${DEPLOY_ROOT}/config/consensus/eth2-config \
-      > ${DEPLOY_ROOT}/config/consensus/bootnode/out.log 2>&1 &
-    local pid=$!
-    echo ${pid} >> ${DEPLOY_ROOT}/config/pids
+      --testnet-dir ${CONFIG_ROOT}/consensus/eth2-config \
+      > ${CONFIG_ROOT}/consensus/bootnode/out.log 2>&1 &
+    echo $! >> ${DEPLOY_ROOT}/pids
   fi
   # Wait for the nodes to start
   sleep 5
@@ -155,30 +154,28 @@ start() {
     --enable-private-discovery \
     --http \
     --staking \
-    --datadir ${DEPLOY_ROOT}/config/consensus/n* \
+    --datadir ${CONFIG_ROOT}/consensus/n* \
     --debug-level info \
     --enr-address $(hostname -I | awk '{print $1}') \
     --enr-tcp-port ${BEACON_NODE_ENR_PORT} \
     --enr-udp-port ${BEACON_NODE_ENR_PORT} \
     --execution-endpoints http://localhost:8551 \
-    --execution-jwt ${DEPLOY_ROOT}/config/jwt.txt \
-    --testnet-dir ${DEPLOY_ROOT}/config/consensus/eth2-config \
-    > ${DEPLOY_ROOT}/config/consensus/bn_out.log 2>&1 &
-  local pid=$!
-  echo ${pid} >> ${DEPLOY_ROOT}/config/pids
+    --execution-jwt ${CONFIG_ROOT}/jwt.txt \
+    --testnet-dir ${CONFIG_ROOT}/consensus/eth2-config \
+    > ${CONFIG_ROOT}/consensus/bn_out.log 2>&1 &
+  echo $! >> ${DEPLOY_ROOT}/pids
   # Wait for the node to start
   sleep 5
   # Start validator client
   lighthouse vc \
     --init-slashing-protection \
     --beacon-nodes http://localhost:5052 \
-    --datadir ${DEPLOY_ROOT}/config/consensus/n* \
+    --datadir ${CONFIG_ROOT}/consensus/n* \
     --debug-level info \
     --suggested-fee-recipient 0x0000000000000000000000000000000000000000 \
-    --testnet-dir ${DEPLOY_ROOT}/config/consensus/eth2-config \
-    > ${DEPLOY_ROOT}/config/consensus/vc_out.log 2>&1 &
-  local pid=$!
-  echo ${pid} >> ${DEPLOY_ROOT}/config/pids
+    --testnet-dir ${CONFIG_ROOT}/consensus/eth2-config \
+    > ${CONFIG_ROOT}/consensus/vc_out.log 2>&1 &
+  echo $! >> ${DEPLOY_ROOT}/pids
   # Wait for the node to start
   sleep 5
   # Wait for the first finalized block
@@ -208,17 +205,17 @@ _kill() {
     exit 1
   fi
   local signal=${1}
-  if [ ! -f ${DEPLOY_ROOT}/config/pids ]; then
+  if [ ! -f ${DEPLOY_ROOT}/pids ]; then
     trap - ERR
     exit 0
   fi
-  for pid in $(cat ${DEPLOY_ROOT}/config/pids); do
+  for pid in $(cat ${DEPLOY_ROOT}/pids); do
     if ! kill -0 ${pid} &> /dev/null; then
       continue
     fi
     kill ${signal} ${pid}
   done
-  rm -rf ${DEPLOY_ROOT}/config/pids
+  rm -rf ${DEPLOY_ROOT}/pids
   trap - ERR
 }
 

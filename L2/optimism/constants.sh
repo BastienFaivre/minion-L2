@@ -21,3 +21,5 @@ readonly OP_GETH_BRANCH='optimism'
 readonly ADMIN_BALANCE=10 # ether
 readonly BATCHER_BALANCE=10 # ether
 readonly PROPOSER_BALANCE=10 # ether
+readonly GETH_PORT=30305
+readonly P2P_LISTEN_PORT=9222

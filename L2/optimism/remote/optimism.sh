@@ -53,7 +53,7 @@ setup_environment() {
     trap - ERR
     exit 1
   fi
-  export PATH=/home/user/.foundry/bin/:$PATH
+  export PATH=${PATH}:${HOME}/.foundry/bin/
   if ! command -v cast &> /dev/null
   then
     utils::err 'Cast command not found in /home/user/.foundry/bin/'
@@ -77,6 +77,13 @@ setup_environment() {
   if ! command -v geth &> /dev/null
   then
     utils::err 'geth command not found in '\
+"${HOME}/${INSTALL_ROOT}/op-geth/build/bin"
+    trap - ERR
+    exit 1
+  fi
+  if ! command -v bootnode &> /dev/null
+  then
+    utils::err 'bootnode command not found in '\
 "${HOME}/${INSTALL_ROOT}/op-geth/build/bin"
     trap - ERR
     exit 1
@@ -121,7 +128,7 @@ setup_environment() {
 # Globals:
 #   None
 # Arguments:
-#   $1: L1 node url
+#   None
 # Outputs:
 #   None
 # Returns:
@@ -129,173 +136,115 @@ setup_environment() {
 #######################################
 start() {
   trap 'exit 1' ERR
-  if ! utils::check_args_eq 1 $#; then
+  if [ ! -d ${CONFIG_ROOT} ]; then
+    utils::err "function ${FUNCNAME[0]}(): No configuration found. Please run "\
+'generate-configuration.sh first.'
     trap - ERR
     exit 1
   fi
-  local l1_node_url=${1}
-  local dir
-  local ip=$(hostname -I | awk '{print $1}')
-  for dir in ${DEPLOY_ROOT}/n*; do
-    test -d ${dir} || continue
-    local authrpcport=$(cat ${dir}/authrpcport)
-    local port=$(cat ${dir}/port)
-    local httpport=$(cat ${dir}/httpport)
-    local wsport=$(cat ${dir}/wsport)
-    local p2pport=$(cat ${dir}/p2pport)
-    local rpcport=$(cat ${dir}/rpcport)
-    if [ -z ${authrpcport} ] || [ -z ${port} ] || [ -z ${httpport} ] || \
-      [ -z ${wsport} ] || [ -z ${p2pport} ] || [ -z ${rpcport} ]; then
-    utils::err "function ${FUNCNAME[0]}(): Could not find authrpcport, port,"\
-" httpport, wsport ,p2pport or rpcport for node ${dir}"
-      trap - ERR
-      exit 1
-    fi
-    local peerid=$(cat ${dir}/opnode_peer_id.txt)
-    local static_nodes=$(cat "${DEPLOY_ROOT}/static-nodes.txt" | \
-      sed -e "s,/ip4/${ip}/tcp/${p2pport}/p2p/${peerid}.*$,," \
-        -e "s/^,//" \
-        -e "s/,$//")
-    echo ${static_nodes} > ${dir}/static-nodes.txt
-    mkdir -p ${dir}/opnode_discovery_db
-    mkdir -p ${dir}/opnode_peerstore_db
-    if [[ ${dir} == *n0 ]]; then
-      local sequencer_address=$(cat ${DEPLOY_ROOT}/accounts/account_sequencer \
-        | cut -d':' -f1 | sed 's/0x//')
-      local sequencer_key=$(cat ${DEPLOY_ROOT}/accounts/account_sequencer \
-        | cut -d':' -f2 | sed 's/0x//')
-      local batcher_key=$(cat ${DEPLOY_ROOT}/accounts/account_batcher \
-        | cut -d':' -f2 | sed 's/0x//')
-      local proposer_key=$(cat ${DEPLOY_ROOT}/accounts/account_proposer \
-        | cut -d':' -f2 | sed 's/0x//')
-      echo ${l1_node_url} > ${dir}/l1_node_url
-      geth \
-        --datadir ${dir} \
-        --allow-insecure-unlock \
-        --nodiscover \
-        --syncmode full \
-        --gcmode archive \
-        --verbosity 2 \
-        --networkid 42069 \
-        --port ${port} \
-        --discovery.port ${port} \
-        --authrpc.addr 0.0.0.0 \
-        --authrpc.port ${authrpcport} \
-        --authrpc.jwtsecret ${dir}/jwt.txt \
-        --ws \
-        --ws.addr 0.0.0.0 \
-        --ws.port ${wsport} \
-        --ws.api admin,eth,debug,net,txpool,web3,engine \
-        --ws.origins '*' \
-        --http \
-        --http.addr 0.0.0.0 \
-        --http.port ${httpport} \
-        --http.corsdomain '*' \
-        --http.api admin,eth,debug,net,txpool,web3,engine \
-        --rollup.disabletxpoolgossip=true \
-        --password ${dir}/password \
-        --allow-insecure-unlock \
-        --unlock ${sequencer_address} \
-        --mine \
-        --miner.etherbase ${sequencer_address} \
-        --maxpeers 0 \
-        > ${dir}/geth.log 2> ${dir}/geth.err &
-      echo $! > ${dir}/pid-geth
-      sleep 1
-      op-node \
-        --l2 http://localhost:${authrpcport} \
-        --l2.jwt-secret ${dir}/jwt.txt \
-        --l1 ${l1_node_url} \
-        --sequencer.enabled \
-        --sequencer.l1-confs 3 \
-        --verifier.l1-confs 3 \
-        --rollup.config ${DEPLOY_ROOT}/rollup.json \
-        --rpc.addr 0.0.0.0 \
-        --rpc.port ${rpcport} \
-        --rpc.enable-admin \
-        --p2p.sequencer.key ${sequencer_key} \
-        --p2p.static "${static_nodes}" \
-        --p2p.listen.ip 0.0.0.0 \
-        --p2p.listen.tcp ${p2pport} \
-        --p2p.listen.udp ${p2pport} \
-        --p2p.discovery.path ${dir}/opnode_discovery_db \
-        --p2p.peerstore.path ${dir}/opnode_peerstore_db \
-        --p2p.priv.path ${dir}/opnode_p2p_priv.txt \
-        > ${dir}/op-node.log 2> ${dir}/op-node.err &
-      echo $! > ${dir}/pid-op-node
-      sleep 1
-      op-batcher \
-        --l2-eth-rpc http://localhost:${httpport} \
-        --rollup-rpc http://localhost:${rpcport} \
-        --poll-interval 1s \
-        --sub-safety-margin 6 \
-        --num-confirmations 1 \
-        --safe-abort-nonce-too-low-count 3 \
-        --resubmission-timeout 30s \
-        --rpc.addr 0.0.0.0 \
-        --rpc.port 12000 \
-        --rpc.enable-admin \
-        --max-channel-duration 1 \
-        --l1-eth-rpc ${l1_node_url} \
-        --private-key ${batcher_key} \
-        > ${dir}/op-batcher.log 2> ${dir}/op-batcher.err &
-      echo $! > ${dir}/pid-op-batcher
-      sleep 1
-      op-proposer \
-        --poll-interval 12s \
-        --rpc.port 13000 \
-        --rollup-rpc http://localhost:${rpcport} \
-        --l2oo-address $(cat ${DEPLOY_ROOT}/L2OutputOracleProxy_address) \
-        --private-key ${proposer_key} \
-        --l1-eth-rpc ${l1_node_url} \
-        > ${dir}/op-proposer.log 2> ${dir}/op-proposer.err &
-      echo $! > ${dir}/pid-op-proposer
-    else
-      geth \
-        --datadir ${dir} \
-        --nodiscover \
-        --syncmode full \
-        --verbosity 2 \
-        --networkid 42069 \
-        --port ${port} \
-        --discovery.port ${port} \
-        --authrpc.addr 0.0.0.0 \
-        --authrpc.port ${authrpcport} \
-        --authrpc.jwtsecret ${dir}/jwt.txt \
-        --ws \
-        --ws.addr 0.0.0.0 \
-        --ws.port ${wsport} \
-        --ws.api admin,eth,debug,net,txpool,web3,engine \
-        --ws.origins '*' \
-        --http \
-        --http.addr 0.0.0.0 \
-        --http.port ${httpport} \
-        --http.corsdomain '*' \
-        --http.api admin,eth,debug,net,txpool,web3,engine \
-        --rollup.disabletxpoolgossip=true \
-        --rollup.sequencerhttp $(cat ${DEPLOY_ROOT}/sequencer-url) \
-        --maxpeers 0 \
-        > ${dir}/geth.log 2> ${dir}/geth.err &
-      echo $! > ${dir}/pid-geth
-      sleep 1
-      op-node \
-        --l2 http://localhost:${authrpcport} \
-        --l2.jwt-secret ${dir}/jwt.txt \
-        --l1 ${l1_node_url} \
-        --rollup.config ${DEPLOY_ROOT}/rollup.json \
-        --rpc.addr 0.0.0.0 \
-        --rpc.port ${rpcport} \
-        --p2p.static "${static_nodes}" \
-        --p2p.listen.ip 0.0.0.0 \
-        --p2p.listen.tcp ${p2pport} \
-        --p2p.listen.udp ${p2pport} \
-        --p2p.discovery.path ${dir}/opnode_discovery_db \
-        --p2p.peerstore.path ${dir}/opnode_peerstore_db \
-        --p2p.priv.path ${dir}/opnode_p2p_priv.txt \
-        > ${dir}/op-node.log 2> ${dir}/op-node.err &
-      echo $! > ${dir}/pid-op-node
-    fi
-  done
+  local l1_node_url=http://localhost:8545
+  local dir=$(ls ${CONFIG_ROOT}/n* -d)
+  if [[ ${dir} == *n0 ]]; then
+    local sequencer_address=$(cat ${CONFIG_ROOT}/accounts/account_sequencer \
+      | cut -d':' -f1 | sed 's/0x//')
+    local sequencer_key=$(cat ${CONFIG_ROOT}/accounts/account_sequencer \
+      | cut -d':' -f2 | sed 's/0x//')
+    local batcher_key=$(cat ${CONFIG_ROOT}/accounts/account_batcher \
+      | cut -d':' -f2 | sed 's/0x//')
+    local proposer_key=$(cat ${CONFIG_ROOT}/accounts/account_proposer \
+      | cut -d':' -f2 | sed 's/0x//')
+    # Start execution engine
+    geth \
+      --password ${dir}/password \
+      --unlock ${sequencer_address} \
+      --authrpc.jwtsecret ${dir}/jwt.txt \
+      --config ${CONFIG_ROOT}/config.toml \
+      --datadir ${dir} \
+      --gcmode archive \
+      --rollup.disabletxpoolgossip=true \
+      > ${CONFIG_ROOT}/geth.out 2>&1 &
+    echo $! > ${DEPLOY_ROOT}/pids
+    sleep 5
+    # Start rollup node
+    op-node \
+      --l1 ${l1_node_url} \
+      --l2 http://localhost:8552 \
+      --l2.jwt-secret ${dir}/jwt.txt \
+      --p2p.discovery.path ${dir}/opnode_discovery_db \
+      --p2p.listen.ip 0.0.0.0 \
+      --p2p.listen.tcp ${P2P_LISTEN_PORT} \
+      --p2p.listen.udp ${P2P_LISTEN_PORT} \
+      --p2p.peerstore.path ${dir}/opnode_peerstore_db \
+      --p2p.priv.path ${dir}/opnode_p2p_priv.txt \
+      --p2p.sequencer.key ${sequencer_key} \
+      --p2p.static "$(cat ${dir}/static-nodes.txt)" \
+      --rollup.config ${CONFIG_ROOT}/rollup.json \
+      --rpc.addr 0.0.0.0 \
+      --rpc.enable-admin \
+      --rpc.port 9545 \
+      --sequencer.enabled \
+      --sequencer.l1-confs 3 \
+      --verifier.l1-confs 3 \
+      > ${CONFIG_ROOT}/op-node.out 2>&1 &
+    echo $! >> ${DEPLOY_ROOT}/pids
+    sleep 1
+    # Start batcher
+    op-batcher \
+      --l1-eth-rpc ${l1_node_url} \
+      --l2-eth-rpc http://localhost:8547 \
+      --max-channel-duration 1 \
+      --num-confirmations 1 \
+      --poll-interval 1s \
+      --private-key ${batcher_key} \
+      --resubmission-timeout 30s \
+      --rollup-rpc http://localhost:9545 \
+      --rpc.addr 0.0.0.0 \
+      --rpc.enable-admin \
+      --rpc.port 8549 \
+      --sub-safety-margin 6 \
+      > ${CONFIG_ROOT}/op-batcher.out 2>&1 &
+    echo $! >> ${DEPLOY_ROOT}/pids
+    sleep 1
+    # Start proposer
+    op-proposer \
+      --l1-eth-rpc ${l1_node_url} \
+      --l2oo-address $(cat ${CONFIG_ROOT}/L2OutputOracleProxy_address) \
+      --poll-interval 12s \
+      --private-key ${proposer_key} \
+      --rollup-rpc http://localhost:9545 \
+      --rpc.port 8550 \
+      > ${CONFIG_ROOT}/op-proposer.out 2>&1 &
+    echo $! >> ${DEPLOY_ROOT}/pids
+  else
+    # Start execution engine
+    geth \
+      --authrpc.jwtsecret ${dir}/jwt.txt \
+      --config ${CONFIG_ROOT}/config.toml \
+      --datadir ${dir} \
+      --gcmode archive \
+      --rollup.disabletxpoolgossip=true \
+      --rollup.sequencerhttp $(cat ${CONFIG_ROOT}/sequencer-url) \
+      > ${CONFIG_ROOT}/geth.out 2>&1 &
+    echo $! > ${DEPLOY_ROOT}/pids
+    sleep 5
+    # Start rollup node
+    op-node \
+      --l1 ${l1_node_url} \
+      --l2 http://localhost:8552 \
+      --l2.jwt-secret ${dir}/jwt.txt \
+      --p2p.discovery.path ${dir}/opnode_discovery_db \
+      --p2p.listen.ip 0.0.0.0 \
+      --p2p.listen.tcp ${P2P_LISTEN_PORT} \
+      --p2p.listen.udp ${P2P_LISTEN_PORT} \
+      --p2p.peerstore.path ${dir}/opnode_peerstore_db \
+      --p2p.priv.path ${dir}/opnode_p2p_priv.txt \
+      --p2p.static "$(cat ${dir}/static-nodes.txt)" \
+      --rollup.config ${CONFIG_ROOT}/rollup.json \
+      --rpc.addr 0.0.0.0 \
+      --rpc.port 9545 \
+      > ${CONFIG_ROOT}/op-node.out 2>&1 &
+    echo $! >> ${DEPLOY_ROOT}/pids
+  fi
   # Wait for the nodes to start
   sleep 2
   trap - ERR
@@ -319,19 +268,17 @@ _kill() {
     exit 1
   fi
   local signal=${1}
-  for dir in ${DEPLOY_ROOT}/n*; do
-    test -d ${dir} || continue
-    test -d ${dir}/keystore || continue
-    for pid in ${dir}/pid-*; do
-      test -f ${pid} || continue
-      if ! kill -0 $(cat ${pid}) &> /dev/null; then
-        rm -rf ${pid}
-        continue
-      fi
-      kill ${signal} $(cat ${pid})
-      rm -rf ${pid}
-    done
+  if [ ! -f ${DEPLOY_ROOT}/pids ]; then
+    trap - ERR
+    exit 0
+  fi
+  for pid in $(cat ${DEPLOY_ROOT}/pids); do
+    if ! kill -0 ${pid} &> /dev/null; then
+      continue
+    fi
+    kill ${signal} ${pid}
   done
+  rm -rf ${DEPLOY_ROOT}/pids
   trap - ERR
 }
 
