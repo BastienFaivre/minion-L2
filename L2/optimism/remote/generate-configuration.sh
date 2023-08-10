@@ -162,21 +162,21 @@ generate() {
   local address=$(echo "${output}" | grep 'Address:' | awk '{print $2}')
   local private_key=$(echo "${output}" | grep 'Private key:' | awk '{print $3}')
   echo ${address}:${private_key} > ${ACCOUNTS_FOLDER}/account_admin
-  ./L2/optimism/remote/send.py ${l1_node_url} ${CHAIN_ID} ${l1_master_sk} \
+  ./L2/optimism/remote/send.py ${l1_node_url} ${ETH_CHAIN_ID} ${l1_master_sk} \
     ${address} ${ADMIN_BALANCE}
   # Batcher
   output=$(cast wallet new)
   address=$(echo "${output}" | grep 'Address:' | awk '{print $2}')
   private_key=$(echo "${output}" | grep 'Private key:' | awk '{print $3}')
   echo ${address}:${private_key} > ${ACCOUNTS_FOLDER}/account_batcher
-  ./L2/optimism/remote/send.py ${l1_node_url} ${CHAIN_ID} ${l1_master_sk} \
+  ./L2/optimism/remote/send.py ${l1_node_url} ${ETH_CHAIN_ID} ${l1_master_sk} \
     ${address} ${BATCHER_BALANCE}
   # Proposer
   output=$(cast wallet new)
   address=$(echo "${output}" | grep 'Address:' | awk '{print $2}')
   private_key=$(echo "${output}" | grep 'Private key:' | awk '{print $3}')
   echo ${address}:${private_key} > ${ACCOUNTS_FOLDER}/account_proposer
-  ./L2/optimism/remote/send.py ${l1_node_url} ${CHAIN_ID} ${l1_master_sk} \
+  ./L2/optimism/remote/send.py ${l1_node_url} ${ETH_CHAIN_ID} ${l1_master_sk} \
     ${address} ${PROPOSER_BALANCE}
   # Sequencer
   output=$(cast wallet new)
@@ -214,7 +214,8 @@ generate() {
     s/SEQUENCER/${sequencer_address}/g; \
     s/BLOCKHASH/${hash}/g; \
     s/TIMESTAMP/${timestamp}/g; \
-    s/\"l1ChainID\": 5,/\"l1ChainID\": ${CHAIN_ID},/g" \
+    s/\"l1ChainID\": 5,/\"l1ChainID\": ${ETH_CHAIN_ID},/g; \
+    s/\"l2ChainID\": 42069,/\"l2ChainID\": ${OP_CHAIN_ID},/g" \
     ${DIR}/deploy-config/getting-started.json
   # due to https://github.com/ethereum-optimism/optimism/commit/069f9c22775805c851919a594de817c8843182b6
   jq '. + {"l1BlockTime": 3}' ${DIR}/deploy-config/getting-started.json \

@@ -1,5 +1,4 @@
 [Eth]
-NetworkId = 42069
 SyncMode = "full"
 
 [Node]
