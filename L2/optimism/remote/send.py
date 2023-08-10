@@ -14,6 +14,11 @@ def send_transaction(node_url, chain_id, private_key, to_address, amount):
     gas = 21000
     if balance < (gas_price * gas) + web3.to_wei(amount, 'ether'):
         print('Insufficient funds')
+        print('balance: ' + str(balance))
+        print('gas_price: ' + str(gas_price))
+        print('gas: ' + str(gas))
+        print('amount (wei): ' + str(web3.to_wei(amount, 'ether')))
+        print('total cost (wei): ' + str((gas_price * gas) + web3.to_wei(amount, 'ether')))
         sys.exit(1)
     nonce = web3.eth.get_transaction_count(account.address, 'pending')
     to_address = web3.to_checksum_address(to_address)
