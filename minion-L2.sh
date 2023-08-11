@@ -101,6 +101,10 @@ if [[ "${l2}" != 'optimism' ]]; then
   if [[ $# -eq 0 ]]; then
     utils::err 'Missing L2'
   else
+    if [[ "${l2}" == '--help' ]] || [[ "${l2}" == '-h' ]]; then
+      usage
+      exit 0
+    fi
     utils::err "Unknown L2: ${l2}"
   fi
   echo ''
