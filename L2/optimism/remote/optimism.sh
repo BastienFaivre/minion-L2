@@ -161,6 +161,7 @@ start() {
       --config ${CONFIG_ROOT}/config.toml \
       --datadir ${dir} \
       --gcmode archive \
+      --networkid ${OP_CHAIN_ID} \
       --rollup.disabletxpoolgossip=true \
       > ${CONFIG_ROOT}/geth.out 2>&1 &
     echo $! > ${DEPLOY_ROOT}/pids
@@ -222,6 +223,7 @@ start() {
       --config ${CONFIG_ROOT}/config.toml \
       --datadir ${dir} \
       --gcmode archive \
+      --networkid ${OP_CHAIN_ID} \
       --rollup.disabletxpoolgossip=true \
       --rollup.sequencerhttp $(cat ${CONFIG_ROOT}/sequencer-url) \
       > ${CONFIG_ROOT}/geth.out 2>&1 &

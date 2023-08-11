@@ -154,6 +154,8 @@ generate() {
     cd ${INSTALL_ROOT}/optimism
     git stash
   )
+  # Copy Geth configuration
+  cp L2/optimism/remote/config.toml ${CONFIG_ROOT}/config.toml
   # Generate and funds accounts
   local readonly ACCOUNTS_FOLDER=${CONFIG_ROOT}/accounts
   mkdir -p ${ACCOUNTS_FOLDER}
@@ -183,7 +185,7 @@ generate() {
   address=$(echo "${output}" | grep 'Address:' | awk '{print $2}')
   private_key=$(echo "${output}" | grep 'Private key:' | awk '{print $3}')
   echo ${address}:${private_key} > ${ACCOUNTS_FOLDER}/account_sequencer
-  echo http://${nodes_ip_addresses[0]}:8545 > ${CONFIG_ROOT}/sequencer-url
+  echo http://${nodes_ip_addresses[0]}:8547 > ${CONFIG_ROOT}/sequencer-url
   # Configure network
   local readonly DIR=${INSTALL_ROOT}/optimism/packages/contracts-bedrock
   rm -rf ${DIR}/.envrc
@@ -265,22 +267,11 @@ generate() {
     cp rollup.json ${HOME}/${CONFIG_ROOT}/rollup.json
   )
   # Create nodes directories with p2p keys
-  cp L2/optimism/remote/config.toml ${CONFIG_ROOT}/config.toml
-  echo 'StaticNodes = [' >> ${CONFIG_ROOT}/config.toml
   local dir
   local i=0
   for ip in ${nodes_ip_addresses[@]}; do
     dir=${CONFIG_ROOT}/n${i}
-    mkdir -p ${dir}/geth
-    bootnode --genkey ${dir}/geth/nodekey
-    nodekey=$(bootnode --nodekey ${dir}/geth/nodekey --writeaddress)
-    if [ ${i} -eq $((${#nodes_ip_addresses[@]}-1)) ]; then
-      echo -e "\t\"enode://${nodekey}@${ip}:${GETH_PORT}\"" \
-        >> ${CONFIG_ROOT}/config.toml
-    else
-      echo -e "\t\"enode://${nodekey}@${ip}:${GETH_PORT}\"," \
-        >> ${CONFIG_ROOT}/config.toml
-    fi
+    mkdir -p ${dir}
     p2p-tool --privKeyPath ${dir}/opnode_p2p_priv.txt --peerIDPath \
       ${dir}/opnode_peer_id.txt
     echo /ip4/${ip}/tcp/9222/p2p/$(cat ${dir}/opnode_peer_id.txt) | tr '\n' ','\
@@ -296,7 +287,6 @@ generate() {
     geth init --datadir ${dir} ${CONFIG_ROOT}/genesis.json > /dev/null 2>&1
     i=$((i+1))
   done
-  echo ']' >> ${CONFIG_ROOT}/config.toml
   sed -i 's/.$//' ${CONFIG_ROOT}/static-nodes.txt
   i=0
   for ip in ${nodes_ip_addresses[@]}; do

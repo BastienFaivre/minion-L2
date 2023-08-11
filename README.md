@@ -12,7 +12,7 @@ Please refer to the usage section to see what are the customizable parameters fo
 
 ### Layer 2 system (L2)
 
-- [Optimism](https://optimism.io/): Minion-L2 deploys one OP node per L1 node. The deployment was based on [this tutorial](https://stack.optimism.io/docs/build/getting-started/), but with some corrections, modifications and improvements. The OP nodes are made of an [OP-Geth](https://github.com/ethereum-optimism/op-geth) execution engine and an [Optimism](https://github.com/ethereum-optimism/optimism) rollup node. The first given host will be running the unique sequencer, as well as the unique batcher (`op-batcher`) and proposer (`op-proposer`). The execution clients are peers of each other using enodes. The rollup nodes are peers of each other using [libp2p](https://libp2p.io/).
+- [Optimism](https://optimism.io/): Minion-L2 deploys one OP node per L1 node. The deployment was based on [this tutorial](https://stack.optimism.io/docs/build/getting-started/), but with some corrections, modifications and improvements. The OP nodes are made of an [OP-Geth](https://github.com/ethereum-optimism/op-geth) execution engine and an [Optimism](https://github.com/ethereum-optimism/optimism) rollup node. The first given host will be running the unique sequencer, as well as the unique batcher (`op-batcher`) and proposer (`op-proposer`). The execution clients are not peers of each other. The rollup nodes are peers of each other using [libp2p](https://libp2p.io/).
 - [Arbitrum](https://arbitrum.io/): Next planned release, not yet started.
 
 Please refer to the usage section to see what are the customizable parameters for each L2 network.

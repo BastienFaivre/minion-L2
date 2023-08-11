@@ -15,6 +15,7 @@ WSOrigins = ["*"]
 WSModules = ["admin", "eth", "debug", "net", "txpool", "web3"]
 
 [Node.P2P]
+MaxPeers = 0
 NoDiscovery = true
 ListenAddr = ":30305"
 DiscAddr = ":30305"

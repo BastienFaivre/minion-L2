@@ -187,7 +187,7 @@ generate() {
   # Generate consensus layer configuration
   mkdir -p ${CONFIG_ROOT}/consensus
   mkdir -p ${CONFIG_ROOT}/consensus/eth2-config
-  local total_validators=$((#${nodes_ip_addresses[@]} * ${VALIDATORS_PER_NODE}))
+  local total_validators=$(( ${#nodes_ip_addresses[@]} * VALIDATORS_PER_NODE ))
   # Create the genesis state
   lcli new-testnet \
     --spec mainnet \
