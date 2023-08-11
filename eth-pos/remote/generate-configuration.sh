@@ -187,6 +187,7 @@ generate() {
   # Generate consensus layer configuration
   mkdir -p ${CONFIG_ROOT}/consensus
   mkdir -p ${CONFIG_ROOT}/consensus/eth2-config
+  local total_validators=$((#${nodes_ip_addresses[@]} * ${VALIDATORS_PER_NODE}))
   # Create the genesis state
   lcli new-testnet \
     --spec mainnet \
@@ -209,13 +210,13 @@ generate() {
     --seconds-per-slot ${SECONDS_PER_SLOT} \
     --testnet-dir ${CONFIG_ROOT}/consensus/eth2-config \
     --ttd ${TTD} \
-    --validator-count ${VALIDATOR_COUNT} \
+    --validator-count ${total_validators} \
     > /dev/null 2>&1
   # Create validator keys
   lcli mnemonic-validators \
     --spec mainnet \
     --base-dir ${CONFIG_ROOT}/consensus \
-    --count ${VALIDATOR_COUNT} \
+    --count ${total_validators} \
     --mnemonic-phrase "${MNENOMIC_PHRASE}" \
     --node-count ${#nodes_ip_addresses[@]} \
     --testnet-dir ${CONFIG_ROOT}/consensus/eth2-config \
