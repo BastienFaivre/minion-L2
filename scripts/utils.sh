@@ -328,6 +328,50 @@ utils::extract_ip_address() {
 }
 
 #######################################
+# Add a remote host to the known hosts
+# Globals:
+#   None
+# Arguments:
+#   $1: remote host
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+utils::add_remote_host_to_known_hosts() {
+  if ! utils::check_args_eq 1 $#; then
+    exit 1
+  fi
+  local remote_host="${1}"
+  local port=$(echo "${remote_host}" | cut -d ':' -f 2)
+  local ip_address=$(utils::extract_ip_address "${remote_host}")
+  if ! grep "\[${ip_address}\]:${port}" ~/.ssh/known_hosts; then
+    ssh-keyscan -p ${port} ${ip_address} >> ~/.ssh/known_hosts
+  fi
+}
+
+#######################################
+# Add remote hosts to the known hosts
+# Globals:
+#   None
+# Arguments:
+#   $@: remote hosts
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+utils::add_remote_hosts_to_known_hosts() {
+  if ! utils::check_args_ge 1 $#; then
+    exit 1
+  fi
+  local remote_hosts_list=("${@}")
+  for remote_host in "${remote_hosts_list[@]}"; do
+    utils::add_remote_host_to_known_hosts "${remote_host}"
+  done
+}
+
+#######################################
 # Execute a command on all remote hosts in parallel while displaying a loader
 # Globals:
 #   None
