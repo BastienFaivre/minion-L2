@@ -159,9 +159,9 @@ if ! utils::check_required_arg 'Remote hosts file' "${remote_hosts_file}"; then
   exit 1
 fi
 
-remote_hosts_list=($(utils::create_remote_hosts_list ${remote_hosts_file}))
-cmd="utils::add_remote_hosts_to_known_hosts ${remote_hosts_list[@]}"
-utils::exec_cmd "${cmd}" 'Add remote hosts to known hosts'
+# remote_hosts_list=($(utils::create_remote_hosts_list ${remote_hosts_file}))
+# cmd="utils::add_remote_hosts_to_known_hosts ${remote_hosts_list[@]}"
+# utils::exec_cmd "${cmd}" 'Add remote hosts to known hosts'
 
 trap 'exit 1' ERR
 

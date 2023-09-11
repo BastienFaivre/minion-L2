@@ -188,7 +188,7 @@ start() {
       --verifier.l1-confs 3 \
       > ${CONFIG_ROOT}/op-node.out 2>&1 &
     echo $! >> ${DEPLOY_ROOT}/pids
-    sleep 1
+    sleep 5
     # Start batcher
     op-batcher \
       --l1-eth-rpc ${l1_node_url} \
@@ -205,7 +205,7 @@ start() {
       --sub-safety-margin 6 \
       > ${CONFIG_ROOT}/op-batcher.out 2>&1 &
     echo $! >> ${DEPLOY_ROOT}/pids
-    sleep 1
+    sleep 5
     # Start proposer
     op-proposer \
       --l1-eth-rpc ${l1_node_url} \
