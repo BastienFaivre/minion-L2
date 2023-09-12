@@ -19,6 +19,7 @@ readonly OP_MONOREPO_URL='https://github.com/ethereum-optimism/optimism.git'
 readonly OP_MONOREPO_BRANCH='master'
 readonly OP_GETH_URL='https://github.com/ethereum-optimism/op-geth.git'
 readonly OP_GETH_BRANCH='optimism'
+readonly BRIDGE_BALANCE=10 # ether
 readonly ADMIN_BALANCE=10 # ether
 readonly BATCHER_BALANCE=10 # ether
 readonly PROPOSER_BALANCE=10 # ether

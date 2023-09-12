@@ -54,6 +54,7 @@ usage() {
   echo '      4: start the L1 network'
   echo '      5: generate the configuration for the L2 network'
   echo '      6: start the L2 network'
+  echo '      7: bridge L1 account tokens to L2'
   echo '  -k, --kill          kill the networks'
   echo '  -c, --clean         clean the remote hosts'
 }
@@ -183,7 +184,7 @@ if [[ "${kill}" == true ]]; then
 fi
 
 if [[ "${steps}" == '' ]]; then
-  steps='1,2,3,4,5,6'
+  steps='1,2,3,4,5,6,7'
 fi
 
 if [[ "${steps}" == *'2'* ]] || [[ "${steps}" == *'5'* ]] \
@@ -257,6 +258,13 @@ if [[ "${steps}" == *'6'* ]]; then
   utils::exec_cmd "${cmd}" "Start ${l2} network"
 else
   utils::skip_cmd "Start ${l2} network"
+fi
+
+if [[ "${steps}" == *'7'* ]]; then
+  cmd="./L2/${l2}/local/bridge.sh ${remote_hosts_file}"
+  utils::exec_cmd "${cmd}" "Bridge L1 account's tokens to ${l2}"
+else
+  utils::skip_cmd "Bridge L1 account's tokens to ${l2}"
 fi
 
 echo ''

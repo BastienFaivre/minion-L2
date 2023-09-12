@@ -22,16 +22,18 @@ const readAddressFromFile = (filename) => {
 
 const zeroAddr = '0x'.padEnd(42, '0');
 
+const path = 'L2/optimism/remote/bridge/';
+
 const contracts = {
     l1: {
         StateCommitmentChain: zeroAddr,
         CanonicalTransactionChain: zeroAddr,
         BondManager: zeroAddr,
-        AddressManager: readAddressFromFile('AddressManager_address'),
-        L1CrossDomainMessenger: readAddressFromFile('L1CrossDomainMessengerProxy_address'),
-        L1StandardBridge: readAddressFromFile('L1StandardBridgeProxy_address'),
-        OptimismPortal: readAddressFromFile('OptimismPortal_address'),
-        L2OutputOracle: readAddressFromFile('L2OutputOracleProxy_address'),
+        AddressManager: readAddressFromFile(path + 'AddressManager_address'),
+        L1CrossDomainMessenger: readAddressFromFile(path + 'L1CrossDomainMessengerProxy_address'),
+        L1StandardBridge: readAddressFromFile(path + 'L1StandardBridgeProxy_address'),
+        OptimismPortal: readAddressFromFile(path + 'OptimismPortal_address'),
+        L2OutputOracle: readAddressFromFile(path + 'L2OutputOracleProxy_address'),
     }
 }
 
