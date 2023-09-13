@@ -67,6 +67,36 @@ retrieve_configuration() {
 }
 
 #######################################
+# Create the Diablo chain configuration
+# Globals:
+#   None
+# Arguments:
+#   $@: remote hosts ip list
+# Outputs:
+#   None
+# Returns:
+#   None
+#######################################
+create_diablo_chain_config() {
+  trap 'exit 1' ERR
+  if ! utils::check_args_ge 1 $#; then
+    trap - ERR
+    exit 1
+  fi
+  local remote_hosts_ip_list=(${@})
+  # retrieve the base configuration
+  cp ../../../eth-pos/local/tmp/config/chain_config.yaml \
+    ./tmp/config/chain_config.yaml
+  # update the name
+  sed -i "s/name: .*/name: \"${NAME}\"/" ./tmp/config/chain_config.yaml
+  # add the nodes
+  for remote_host in "${remote_hosts_ip_list[@]}"; do
+    sed -i "/^keys:/i \ \ - ${remote_host}:${OP_GETH_HTTP_PORT}" \
+      ./tmp/config/chain_config.yaml
+  done
+}
+
+#######################################
 # Send the configuration to the remote hosts
 # Globals:
 #   None
@@ -155,7 +185,12 @@ utils::exec_cmd_on_remote_hosts "${cmd}" 'Generate the configuration' \
 cmd="retrieve_configuration ${first_remote_host}"
 utils::exec_cmd "${cmd}" 'Retrieve the configuration'
 
+# Create Diablo chain configuration in background
+create_diablo_chain_config ${remote_hosts_ip_list[@]} &
+
 cmd="send_configuration ${remote_hosts_list[@]}"
 utils::exec_cmd "${cmd}" 'Send the configuration'
+
+wait
 
 trap - ERR

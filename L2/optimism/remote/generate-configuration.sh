@@ -185,7 +185,7 @@ generate() {
   address=$(echo "${output}" | grep 'Address:' | awk '{print $2}')
   private_key=$(echo "${output}" | grep 'Private key:' | awk '{print $3}')
   echo ${address}:${private_key} > ${ACCOUNTS_FOLDER}/account_sequencer
-  # TODO: proxy: 1234, normal: 8547
+  # TODO: proxy: 1234, normal: ${OP_GETH_HTTP_PORT}
   echo http://${nodes_ip_addresses[0]}:1234 > ${CONFIG_ROOT}/sequencer-url
   # Configure network
   local readonly DIR=${INSTALL_ROOT}/optimism/packages/contracts-bedrock

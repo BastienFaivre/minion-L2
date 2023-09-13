@@ -120,6 +120,10 @@ generate() {
   mkdir -p ${CONFIG_ROOT}/execution/accounts
   mkdir -p ${CONFIG_ROOT}/execution/accounts/keystore
   mkdir -p ${CONFIG_ROOT}/execution/tmp
+  # Prepare Diablo chain configuration
+  echo 'name: ""' > ${CONFIG_ROOT}/chain_config.yaml
+  echo 'nodes:' >> ${CONFIG_ROOT}/chain_config.yaml
+  echo 'keys:' >> ${CONFIG_ROOT}/chain_config.yaml
   # Generate accounts
   local alloc='{'
   for i in $(seq 0 ${num_accounts}); do
@@ -144,6 +148,9 @@ generate() {
       alloc+='}'
     fi
     rm -rf ${CONFIG_ROOT}/tmp/*
+    # Add account to Diablo chain configuration
+    echo "  - address: \"0x${address}\"" >> ${CONFIG_ROOT}/chain_config.yaml
+    echo "    private: \"0x${private}\"" >> ${CONFIG_ROOT}/chain_config.yaml
   done
   # Generate genesis
   genesis=$(cat eth-pos/remote/genesis.json)
