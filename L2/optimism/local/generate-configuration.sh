@@ -85,15 +85,16 @@ create_diablo_chain_config() {
   fi
   local remote_hosts_ip_list=(${@})
   # retrieve the base configuration
-  cp ../../../eth-pos/local/tmp/config/chain_config.yaml \
-    ./tmp/config/chain_config.yaml
-  # update the name
-  sed -i "s/name: .*/name: \"${NAME}\"/" ./tmp/config/chain_config.yaml
+  cp ../../../eth-pos/local/tmp/config/setup.yaml \
+    ./tmp/config/setup.yaml
+  cp ../../../eth-pos/local/tmp/config/accounts.yaml \
+    ./tmp/config/accounts.yaml
   # add the nodes
   for remote_host in "${remote_hosts_ip_list[@]}"; do
-    sed -i "/^keys:/i \ \ - ${remote_host}:${OP_GETH_HTTP_PORT}" \
-      ./tmp/config/chain_config.yaml
+    echo "      - ${remote_host}:${OP_GETH_WS_PORT}" \
+      >> ./tmp/config/setup.yaml
   done
+  echo '    tags:' >> ./tmp/config/setup.yaml
 }
 
 #######################################
@@ -171,7 +172,7 @@ trap 'exit 1' ERR
 #   remote_hosts_ip_list+=($(utils::extract_ip_address ${remote_host}))
 # done
 # TODO: remove
-remote_hosts_ip_list=('192.168.201.2' '192.168.201.3' '192.168.201.4' \
+remote_hosts_ip_list=('192.168.201.3' '192.168.201.4' \
 '192.168.201.5' '192.168.201.6' '192.168.201.7' '192.168.201.8' '192.168.201.9'\
  '192.168.201.10' '192.168.201.11')
 

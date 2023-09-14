@@ -46,10 +46,15 @@ usage() {
 #######################################
 bridge_l1_to_l2() {
   trap 'exit 1' ERR
+  local i=0
   for account in ./deploy/eth-pos/config/execution/accounts/*; do
     private_key=$(cat ${account} | cut -d: -f2)
     # bridge
     node ./L2/optimism/remote/bridge/index.js ${private_key} ${BRIDGE_BALANCE} &
+    if [ $((i % (4 * $(nproc)))) -eq 0 ]; then
+      wait
+    fi
+    i=$((i+1))
   done
   wait
   trap - ERR
@@ -68,6 +73,7 @@ trap 'exit 1' ERR
 
 utils::ask_sudo
 
-utils::exec_cmd 'bridge_l1_to_l2' 'Bridge L1 account tokens to L2'
+# utils::exec_cmd 'bridge_l1_to_l2' 'Bridge L1 account tokens to L2'
+bridge_l1_to_l2
 
 trap - ERR

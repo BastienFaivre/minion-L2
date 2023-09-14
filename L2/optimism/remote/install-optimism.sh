@@ -159,7 +159,7 @@ clone_and_build_OP_geth() {
 }
 
 #######################################
-# Build p2p tool
+# Build p2p and bridge tool
 # Globals:
 #   None
 # Arguments:
@@ -169,13 +169,20 @@ clone_and_build_OP_geth() {
 # Returns:
 #   None
 #######################################
-build_p2p_tool() {
+build_p2p_and_bridge_tool() {
   trap 'exit 1' ERR
-  cd L2/optimism/remote
-  rm -rf go.mod go.sum bin/p2p-tool
-  go mod init p2p-tool
-  go mod tidy
-  go build -o bin/p2p-tool p2p-tool.go
+  (
+    cd L2/optimism/remote
+    rm -rf go.mod go.sum bin/p2p-tool
+    go mod init p2p-tool
+    go mod tidy
+    go build -o bin/p2p-tool p2p-tool.go
+  ) &
+  (
+    cd L2/optimism/remote/bridge
+    npm install
+  ) &
+  wait
   trap - ERR
 }
 
@@ -213,6 +220,6 @@ utils::exec_cmd 'clone_and_build_OP_monorepo' 'Clone and build Optimism monorepo
 
 utils::exec_cmd 'clone_and_build_OP_geth' 'Clone and build Optimism Geth'
 
-utils::exec_cmd 'build_p2p_tool' 'Build p2p tool'
+utils::exec_cmd 'build_p2p_and_bridge_tool' 'Build p2p and bridge tool'
 
 trap - ERR

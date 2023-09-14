@@ -119,27 +119,55 @@ generate() {
   mkdir -p ${CONFIG_ROOT}
   mkdir -p ${CONFIG_ROOT}/execution/accounts
   mkdir -p ${CONFIG_ROOT}/execution/accounts/keystore
-  mkdir -p ${CONFIG_ROOT}/execution/tmp
+  mkdir -p ${CONFIG_ROOT}/tmp
   # Prepare Diablo chain configuration
-  echo 'name: ""' > ${CONFIG_ROOT}/chain_config.yaml
-  echo 'nodes:' >> ${CONFIG_ROOT}/chain_config.yaml
-  echo 'keys:' >> ${CONFIG_ROOT}/chain_config.yaml
+  echo 'interface: "ethereum"' > ${CONFIG_ROOT}/setup.yaml
+  echo 'parameters:' >> ${CONFIG_ROOT}/setup.yaml
+  echo 'endpoints:' >> ${CONFIG_ROOT}/setup.yaml
+  echo '  - addresses:' >> ${CONFIG_ROOT}/setup.yaml
   # Generate accounts
+  for i in $(seq 0 ${num_accounts}); do
+    (
+      mkdir -p ${CONFIG_ROOT}/tmp/${i}
+      printf "%d\n%d\n" ${i} ${i} | geth --datadir ${CONFIG_ROOT}/tmp/${i} \
+        account new > /dev/null 2>&1
+      cp ${CONFIG_ROOT}/tmp/${i}/keystore/* \
+        ${CONFIG_ROOT}/execution/accounts/keystore/
+      keypath=$(ls ${CONFIG_ROOT}/tmp/${i}/keystore/UTC--*)
+      address=${keypath##*--}
+      private=$(./eth-pos/remote/extract.py ${keypath} ${i})
+      if [ ${i} -eq 0 ]; then
+        echo ${address}:${private} \
+          > ${CONFIG_ROOT}/execution/accounts/account_master
+      else
+        echo ${address}:${private} \
+          > ${CONFIG_ROOT}/execution/accounts/account_${i}
+      fi
+    ) &
+    if [ $((${i} % $(nproc))) -eq 0 ]; then
+      wait
+    fi
+  done
+  wait
+  rm -rf ${CONFIG_ROOT}/tmp/*
   local alloc='{'
   for i in $(seq 0 ${num_accounts}); do
-    printf "%d\n%d\n" ${i} ${i} | geth --datadir ${CONFIG_ROOT}/tmp \
-      account new > /dev/null 2>&1
-    cp ${CONFIG_ROOT}/tmp/keystore/* ${CONFIG_ROOT}/execution/accounts/keystore/
-    keypath=$(ls ${CONFIG_ROOT}/tmp/keystore/UTC--*)
-    address=${keypath##*--}
-    private=$(./eth-pos/remote/extract.py ${keypath} ${i})
     if [ ${i} -eq 0 ]; then
-      echo ${address}:${private} \
-        > ${CONFIG_ROOT}/execution/accounts/account_master
+      address=$(cat ${CONFIG_ROOT}/execution/accounts/account_master | cut -d: -f1)
+      private=$(cat ${CONFIG_ROOT}/execution/accounts/account_master | cut -d: -f2)
+    else
+      address=$(cat ${CONFIG_ROOT}/execution/accounts/account_${i} | cut -d: -f1)
+      private=$(cat ${CONFIG_ROOT}/execution/accounts/account_${i} | cut -d: -f2)
+    fi
+    # Add account to Diablo chain configuration (skip master account)
+    if [ ${i} -ne 0 ]; then
+      echo "- address: \"${address}\"" >> ${CONFIG_ROOT}/accounts.yaml
+      echo "  private: \"${private}\"" >> ${CONFIG_ROOT}/accounts.yaml
+    fi
+    # Add account to genesis
+    if [ ${i} -eq 0 ]; then
       alloc+='"'${address}'": {"balance": "'${MASTER_BALANCE}'"}'
     else
-      echo ${address}:${private} \
-        > ${CONFIG_ROOT}/execution/accounts/account_${i}
       alloc+='"'${address}'": {"balance": "'${ACCOUNT_BALANCE}'"}'
     fi
     if [ ${i} -ne ${num_accounts} ]; then
@@ -147,10 +175,6 @@ generate() {
     else
       alloc+='}'
     fi
-    rm -rf ${CONFIG_ROOT}/tmp/*
-    # Add account to Diablo chain configuration
-    echo "  - address: \"0x${address}\"" >> ${CONFIG_ROOT}/chain_config.yaml
-    echo "    private: \"0x${private}\"" >> ${CONFIG_ROOT}/chain_config.yaml
   done
   # Generate genesis
   genesis=$(cat eth-pos/remote/genesis.json)
