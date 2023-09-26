@@ -215,12 +215,12 @@ if [[ "${steps}" == *'3'* ]] && \
 fi
 
 if [[ "${steps}" == *'2'* ]]; then
-#   cmd="./eth-pos/local/install-eth-pos.sh ${remote_hosts_file}"
-#   utils::exec_cmd "${cmd}" 'Install Ethereum PoS on remote hosts (this may '\
-# 'take a long time)'
-  cmd="./L2/${l2}/local/install-${l2}.sh ${remote_hosts_file}"
-  utils::exec_cmd "${cmd}" "Install ${l2} on remote hosts (this may take a "\
-'long time)'
+  cmd="./eth-pos/local/install-eth-pos.sh ${remote_hosts_file}"
+  utils::exec_cmd "${cmd}" 'Install Ethereum PoS on remote hosts (this may '\
+'take a long time)'
+#   cmd="./L2/${l2}/local/install-${l2}.sh ${remote_hosts_file}"
+#   utils::exec_cmd "${cmd}" "Install ${l2} on remote hosts (this may take a "\
+# 'long time)'
 else
   utils::skip_cmd 'Install Ethereum PoS on remote hosts (this may take a long '\
 'time)'
