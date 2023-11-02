@@ -1,0 +1,24 @@
+let:
+
+  - !loop &europe
+    sample: !endpoint [ "dclbigmem" ]
+
+  - !loop &europe_loc
+    sample: !location [ "dclbigmem" ]
+
+  - &account { sample: !account { number: 10, stake: 0 } }
+
+  - &offset
+    sample: !float { from: 0, to: 0.999 }
+
+workloads:
+
+  - number: 10
+    client:
+      location: *europe_loc
+      view: *europe
+      behavior:
+        - interaction: !transfer { from: *account, to: *account }
+          load:
+            0: 10
+            2: 0

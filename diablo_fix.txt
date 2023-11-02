@@ -1,0 +1,76 @@
+// blockchains/nethereum/client.go
+
+type RPCRequest struct {
+	JsonRPC string        `json:"jsonrpc"`
+	Method  string        `json:"method"`
+	Params  []interface{} `json:"params"`
+	ID      int           `json:"id"`
+}
+
+func (this *pollblkTransactionConfirmer) processBlock(number *big.Int) error {
+	// var stxs []*types.Transaction
+	// var stx *types.Transaction
+	// var block *types.Block
+	var hashes []string
+	var err error
+	// var i int
+
+	this.logger.Tracef("poll new block (number = %d)", number)
+
+	request := RPCRequest{
+		JsonRPC: "2.0",
+		Method:  "eth_getBlockByNumber",
+		Params:  []interface{}{fmt.Sprintf("0x%x", number), true},
+		ID:      2320,
+	}
+
+	requestData, err := json.Marshal(request)
+	if err != nil {
+		return err
+	}
+
+	response, err := http.Post("http://192.168.201.3:8547", "application/json", bytes.NewBuffer(requestData))
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+
+	var body map[string]interface{}
+	err = json.NewDecoder(response.Body).Decode(&body)
+	if err != nil {
+		return err
+	}
+
+	result := body["result"].(map[string]interface{})
+
+	transactions := result["transactions"].([]interface{})
+
+	if len(transactions) == 0 {
+		return nil
+	}
+
+	hashes = make([]string, len(transactions))
+	for i, transaction := range transactions {
+		hashes[i] = transaction.(map[string]interface{})["hash"].(string)
+	}
+
+	// block, err = this.client.BlockByNumber(this.ctx, number)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// stxs = block.Transactions()
+	// hashes = make([]string, len(stxs))
+
+	// if len(stxs) == 0 {
+	// 	return nil
+	// }
+
+	// for i, stx = range stxs {
+	// 	hashes[i] = stx.Hash().String()
+	// }
+
+	this.reportHashes(hashes)
+
+	return nil
+}

@@ -160,11 +160,15 @@ if ! utils::check_required_arg 'Remote hosts file' "${remote_hosts_file}"; then
   exit 1
 fi
 
-# remote_hosts_list=($(utils::create_remote_hosts_list ${remote_hosts_file}))
-# cmd="utils::add_remote_hosts_to_known_hosts ${remote_hosts_list[@]}"
-# utils::exec_cmd "${cmd}" 'Add remote hosts to known hosts'
+remote_hosts_list=($(utils::create_remote_hosts_list ${remote_hosts_file}))
+cmd="utils::add_remote_hosts_to_known_hosts ${remote_hosts_list[@]}"
+utils::exec_cmd "${cmd}" 'Add remote hosts to known hosts'
 
 trap 'exit 1' ERR
+
+if [[ "${steps}" == '' ]]; then
+  steps='1,2,3,4,5,6,7'
+fi
 
 if [[ "${steps}" == *'1'* ]]; then
   cmd="./scripts/local/export.sh ${remote_hosts_file}"
@@ -181,10 +185,6 @@ if [[ "${kill}" == true ]]; then
   echo ''
   echo 'Task completed successfully!'
   exit 0
-fi
-
-if [[ "${steps}" == '' ]]; then
-  steps='1,2,3,4,5,6,7'
 fi
 
 if [[ "${steps}" == *'2'* ]] || [[ "${steps}" == *'5'* ]] \
@@ -215,9 +215,10 @@ if [[ "${steps}" == *'3'* ]] && \
 fi
 
 if [[ "${steps}" == *'2'* ]]; then
-#   cmd="./eth-pos/local/install-eth-pos.sh ${remote_hosts_file}"
-#   utils::exec_cmd "${cmd}" 'Install Ethereum PoS on remote hosts (this may '\
-# 'take a long time)'
+  # utils::skip_cmd 'Skip installation of Ethereum PoS and L2 on remote hosts'
+  cmd="./eth-pos/local/install-eth-pos.sh ${remote_hosts_file}"
+  utils::exec_cmd "${cmd}" 'Install Ethereum PoS on remote hosts (this may '\
+'take a long time)'
   cmd="./L2/${l2}/local/install-${l2}.sh ${remote_hosts_file}"
   utils::exec_cmd "${cmd}" "Install ${l2} on remote hosts (this may take a "\
 'long time)'
