@@ -71,9 +71,8 @@ fi
 
 trap 'exit 1' ERR
 
-utils::ask_sudo
+#utils::ask_sudo
 
-# utils::exec_cmd 'bridge_l1_to_l2' 'Bridge L1 account tokens to L2'
-bridge_l1_to_l2
+utils::exec_cmd 'bridge_l1_to_l2' 'Bridge L1 account tokens to L2'
 
 trap - ERR

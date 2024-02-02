@@ -156,7 +156,7 @@ start() {
     --staking \
     --datadir ${CONFIG_ROOT}/consensus/n* \
     --debug-level info \
-    --enr-address $(hostname -I | awk '{print $1}') \
+    --enr-address $(cat ${CONFIG_ROOT}/ip) \
     --enr-tcp-port ${BEACON_NODE_ENR_PORT} \
     --enr-udp-port ${BEACON_NODE_ENR_PORT} \
     --execution-endpoints http://localhost:8551 \
@@ -265,7 +265,7 @@ action=${1}
 
 trap 'exit 1' ERR
 
-utils::ask_sudo
+#utils::ask_sudo
 setup_environment
 case ${action} in
   start)

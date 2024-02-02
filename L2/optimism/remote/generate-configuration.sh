@@ -185,7 +185,7 @@ generate() {
   address=$(echo "${output}" | grep 'Address:' | awk '{print $2}')
   private_key=$(echo "${output}" | grep 'Private key:' | awk '{print $3}')
   echo ${address}:${private_key} > ${ACCOUNTS_FOLDER}/account_sequencer
-  # TODO: proxy: 1234, normal: ${OP_GETH_HTTP_PORT}
+  # proxy: 1234, normal: ${OP_GETH_HTTP_PORT}
   echo http://${nodes_ip_addresses[0]}:${OP_GETH_HTTP_PORT} > ${CONFIG_ROOT}/sequencer-url
   # Configure network
   local readonly DIR=${INSTALL_ROOT}/optimism/packages/contracts-bedrock
@@ -298,6 +298,11 @@ generate() {
       sed -e "s,/ip4/${ip}/tcp/${P2P_LISTEN_PORT}/p2p/${peerid}.*$,," \
         -e "s/^,//" \
         -e "s/,$//")
+    if [[ "${static_nodes}" = *","* ]]; then
+      static_nodes=$(echo "${static_nodes}" | sed 's/^[^,]*,//')
+    else
+      static_nodes=""
+    fi
     echo ${static_nodes} > ${dir}/static-nodes.txt
     i=$((i+1))
   done
@@ -319,7 +324,7 @@ action=${1}; shift
 
 trap 'exit 1' ERR
 
-utils::ask_sudo
+#utils::ask_sudo
 case ${action} in
   'generate')
     cmd="generate ${@}"

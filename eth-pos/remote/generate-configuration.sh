@@ -209,6 +209,7 @@ generate() {
       echo -e "\t\"enode://${nodekey}@${ip}:${GETH_PORT}\"," \
         >> ${CONFIG_ROOT}/execution/config.toml
     fi
+    echo ${ip} > ${dir}/ip
     openssl rand -hex 32 > ${dir}/jwt.txt
     geth init --datadir ${dir} ${CONFIG_ROOT}/execution/genesis.json \
       > /dev/null 2>&1
@@ -280,7 +281,7 @@ action=${1}; shift
 
 trap 'exit 1' ERR
 
-utils::ask_sudo
+#utils::ask_sudo
 case ${action} in
   'generate')
     cmd="generate $@"

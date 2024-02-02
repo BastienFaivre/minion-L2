@@ -198,7 +198,7 @@ fi
 
 trap 'exit 1' ERR
 
-utils::ask_sudo
+#utils::ask_sudo
 
 utils::exec_cmd 'install_necessary_packages' 'Install necessary packages'
 

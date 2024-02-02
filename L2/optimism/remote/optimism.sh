@@ -330,7 +330,7 @@ action=${1}; shift
 
 trap 'exit 1' ERR
 
-utils::ask_sudo
+#utils::ask_sudo
 setup_environment
 case ${action} in
   start)

@@ -44,6 +44,7 @@ usage() {
   echo '    Please ALWAYS SPECIFY THE PORT, even if it is the default SSH port'
   echo '  -a, --num-accounts  (required for step 3) number of founded accounts'\
 ' on L1'
+  echo '  -n, --num-nodes-l2  (required) number of nodes for L2'
   echo '  -s, --steps         steps to do (default: all)'
   echo '    Format: <step>[,<step>]...'
   echo '    Steps:'
@@ -133,6 +134,10 @@ while [[ $# -gt 0 ]]; do
       num_accounts=${2}
       shift 2
       ;;
+    -n|--num-nodes-l2)
+      num_nodes_l2=${2}
+      shift 2
+      ;;
     -s|--steps)
       steps=${2}
       shift 2
@@ -160,9 +165,18 @@ if ! utils::check_required_arg 'Remote hosts file' "${remote_hosts_file}"; then
   exit 1
 fi
 
+if ! utils::check_required_arg 'Number of nodes for L2' "${num_nodes_l2}"; then
+  echo ''
+  usage
+  exit 1
+fi
+
 remote_hosts_list=($(utils::create_remote_hosts_list ${remote_hosts_file}))
 cmd="utils::add_remote_hosts_to_known_hosts ${remote_hosts_list[@]}"
 utils::exec_cmd "${cmd}" 'Add remote hosts to known hosts'
+
+remote_hosts_file_l2='hosts_l2'
+head -n ${num_nodes_l2} ${remote_hosts_file} > ${remote_hosts_file_l2}
 
 trap 'exit 1' ERR
 
@@ -178,7 +192,7 @@ else
 fi
 
 if [[ "${kill}" == true ]]; then
-  cmd="./L2/${l2}/local/${l2}.sh ${remote_hosts_file} kill"
+  cmd="./L2/${l2}/local/${l2}.sh ${remote_hosts_file_l2} kill"
   utils::exec_cmd "${cmd}" "Kill ${l2} network"
   cmd="./eth-pos/local/eth-pos.sh ${remote_hosts_file} kill"
   utils::exec_cmd "${cmd}" "Kill Ethereum PoS network"
@@ -189,7 +203,7 @@ fi
 
 if [[ "${steps}" == *'2'* ]] || [[ "${steps}" == *'5'* ]] \
   || [[ "${steps}" == *'6'* ]]; then
-  cmd="./L2/${l2}/local/${l2}.sh ${remote_hosts_file} kill"
+  cmd="./L2/${l2}/local/${l2}.sh ${remote_hosts_file_l2} kill"
   utils::exec_cmd "${cmd}" "Kill ${l2} network"
 fi
 
@@ -247,7 +261,7 @@ else
 fi
 
 if [[ "${steps}" == *'5'* ]]; then
-  cmd="./L2/${l2}/local/generate-configuration.sh ${remote_hosts_file} "\
+  cmd="./L2/${l2}/local/generate-configuration.sh ${remote_hosts_file_l2} "\
 './eth-pos/local/tmp/config/execution/accounts/account_master'
   utils::exec_cmd "${cmd}" "Generate the configuration for the ${l2} network"
 else
@@ -255,14 +269,14 @@ else
 fi
 
 if [[ "${steps}" == *'6'* ]]; then
-  cmd="./L2/${l2}/local/${l2}.sh ${remote_hosts_file} start"
+  cmd="./L2/${l2}/local/${l2}.sh ${remote_hosts_file_l2} start"
   utils::exec_cmd "${cmd}" "Start ${l2} network"
 else
   utils::skip_cmd "Start ${l2} network"
 fi
 
 if [[ "${steps}" == *'7'* ]]; then
-  cmd="./L2/${l2}/local/bridge.sh ${remote_hosts_file}"
+  cmd="./L2/${l2}/local/bridge.sh ${remote_hosts_file_l2}"
   utils::exec_cmd "${cmd}" "Bridge L1 account's tokens to ${l2}"
 else
   utils::skip_cmd "Bridge L1 account's tokens to ${l2}"
