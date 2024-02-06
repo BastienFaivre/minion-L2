@@ -1,0 +1,1 @@
+4*25 clients, 60 seconds, 180 total seconds
